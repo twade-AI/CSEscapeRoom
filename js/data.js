@@ -22,7 +22,8 @@ const GAME = {
    icon      – emoji shown on the door
    type      – which puzzle engine renders it
    blurb     – the instruction line shown to pupils
-   key       – the KEY pupils earn for solving this room (opens the NEXT door)
+   key       – the KEY pupils earn for solving this room (opens the NEXT door
+               in their randomised route)
    bonus     – optional bonus riddle {q, a}
    ...type-specific fields
 */
@@ -318,7 +319,7 @@ const ROOMS = [
     blurb: "The final message was scrambled with a SHIFT (Caesar) cipher. Turn " +
            "the dial to slide the alphabet until the message reads clearly — " +
            "then you'll know how to escape!",
-    key: null,   // final room — solving it wins the game
+    key: "CIPHER",   // earned like any room; the game is won once ALL rooms are solved
     bonus: {
       q: "Which of these is NOT a valid functional domain name: .net  .org  .gov  .god ?",
       a: ".GOD"

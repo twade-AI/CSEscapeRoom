@@ -4,6 +4,11 @@ Full solutions for every room. Pupils unlock each door with the **key** earned i
 the previous room. Turn on **Teacher mode** (corridor screen) to get a *Reveal*
 button inside any room during a live demo.
 
+> **Randomised route:** the starting room and the order are shuffled per device,
+> so each group's path differs. The keys below are what **each room awards**; the
+> room that key opens depends on that device's route. The game is won once **all
+> nine rooms** are solved (the Grey Room cipher reveals the final challenge).
+
 > Tip: keys are **not** case-sensitive and spaces are ignored, so `158399` and
 > `Network` both work fine at the locks.
 
@@ -111,6 +116,7 @@ decodes to the **escape instruction**:
 > five of your team's colours facing up.”**
 
 **Bonus riddle:** not a valid domain → **.GOD**
+**Key earned → `CIPHER`** (awarded like any room; the game is won once every room is solved)
 
 🏆 **That's the escape!** Set this physical challenge up in your classroom, or
 edit `GAME.escapeMessage` (and the cipher text) in `js/data.js` to use your own.
