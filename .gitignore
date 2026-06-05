@@ -1,0 +1,11 @@
+# dependencies (dev tooling only — the app itself needs none)
+node_modules/
+package-lock.json
+
+# generated test screenshots (the curated ones live in docs/screenshots/)
+_test/*.png
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.log
