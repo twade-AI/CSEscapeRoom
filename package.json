@@ -1,0 +1,16 @@
+{
+  "name": "cs-escape-room",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Interactive Computer Science escape-room challenge for the classroom (no build step; needs no dependencies to play).",
+  "scripts": {
+    "test": "node _test/harness.js",
+    "screenshots": "node _test/shots.js"
+  },
+  "devDependencies": {
+    "jsdom": "^29.1.1"
+  },
+  "comments": {
+    "playwright": "Optional, only for `npm run screenshots`: npm i -D playwright && npx playwright install chromium"
+  }
+}

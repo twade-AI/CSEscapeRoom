@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Escape the Room — Computer Science</title>
+  <meta name="description" content="An interactive Computer Science escape-room challenge for the classroom.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗝️</text></svg>">
+</head>
+<body>
+  <noscript>
+    <p style="text-align:center;padding:2rem">This escape room needs JavaScript turned on.</p>
+  </noscript>
+
+  <main id="app" aria-live="polite"><!-- the game renders here --></main>
+
+  <!-- Plain scripts (no modules) so it works by double-clicking the file too. -->
+  <script src="js/data.js"></script>
+  <script src="js/dragdrop.js"></script>
+  <script src="js/puzzles.js"></script>
+  <script src="js/engine.js"></script>
+</body>
+</html>
