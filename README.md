@@ -15,13 +15,18 @@ share, or host it for free on **GitHub Pages**.
 
 ## ▶️ How pupils play
 
-1. The **corridor** shows nine coloured doors. Only the glowing door is open.
+1. The **corridor** shows nine coloured doors. The **starting room is random**
+   (marked ★) and only the glowing door is open.
 2. Click the open door and solve the puzzle inside.
-3. Solving it reveals a **key**. Use it to unlock the next door.
-4. Keep going until you crack the **Grey Room** cipher and escape!
+3. Solving it reveals a **key** that unlocks the next room on your **randomised
+   route** — every device gets a different order.
+4. Keep going until **every room is solved** — then you escape! (The Grey Room's
+   cipher reveals the final real-world challenge.)
 
-Progress is saved automatically in the browser (so a pupil can close the tab and
-come back). Each device keeps its own progress.
+Because the route is shuffled per device, neighbouring groups can't simply copy
+each other's "next answer". Progress and the route are saved automatically in the
+browser, so a pupil can close the tab and come back. *Reset* gives a fresh random
+route.
 
 ## 🚪 The nine rooms
 
@@ -62,10 +67,11 @@ and interactive whiteboards as well as laptops.
 VLE and tell pupils to open `index.html`.
 
 **Option B — GitHub Pages (a shareable link).**
-1. Merge this branch into `main`.
-2. Repo **Settings → Pages → Build and deployment → Source: GitHub Actions**.
-3. The included workflow (`.github/workflows/pages.yml`) publishes the site and
-   gives you a link like `https://<you>.github.io/csescaperoom/`.
+1. Make sure the app is on your `main` branch.
+2. Repo **Settings → Pages → Build and deployment → Source: "Deploy from a
+   branch" → `main` / `(root)`**.
+3. GitHub publishes the site at `https://<you>.github.io/csescaperoom/`
+   (give it a minute on the first build).
 
 ---
 

@@ -75,43 +75,83 @@ window.__fails = 0;
 })();
 `);
 
-/* ---- async flow test: solve a room → key screen → lock → use key → next ---- */
+/* ---- async flow test: random route → solve every room → escape ---- */
+const KEY = "cs-escape-progress-v1";
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const click = el => el.dispatchEvent(new window.Event("click", { bubbles: true }));
 
 (async () => {
   let flowFails = 0;
   const $ = sel => window.document.querySelector(sel);
-  try {
-    window.localStorage.removeItem("cs-escape-progress-v1");
-    window.Engine.init();
-    click($("#btn-teacher"));                              // enable teacher mode
-    click(window.document.querySelector('.door[data-index="0"]')); // enter room 1
-    if (!$("#puzzle")) throw new Error("room 1 did not open");
-    click($("#reveal"));                                   // teacher reveal answers
-    click($("#check"));                                    // check → completes room
-    await sleep(650);                                      // wait for key-earned screen
-    if (!$(".key-reveal")) throw new Error("key-earned screen not shown");
-    const shownKey = $(".key-reveal").textContent.trim();
-    if (shownKey !== window.ROOMS[0].key) { flowFails++; console.log("  FAIL wrong key shown:", shownKey); }
-    click($("#next"));                                     // go to next door
-    if (!$(".lockscreen")) throw new Error("lock screen not shown");
-    click($("#usekey"));                                   // use earned key
-    await sleep(750);                                      // wait for unlock anim → room 2
-    const head = $(".room-head h2");
-    if (!head || head.textContent !== window.ROOMS[1].name) { flowFails++; console.log("  FAIL did not enter room 2, got:", head && head.textContent); }
-    else console.log("  PASS full flow: solved room 1 → used key → entered", head.textContent);
+  const ROOMS = window.ROOMS;
+  const fail = m => { flowFails++; console.log("  FAIL " + m); };
 
-    // wrong key should NOT unlock
+  // Solve the room currently on screen via teacher Reveal (+ Check if needed).
+  async function solveCurrentRoom() {
+    if (!$("#puzzle")) throw new Error("expected to be in a room");
+    if ($("#reveal")) click($("#reveal"));
+    await sleep(1050);                 // let auto-completing puzzles (sudoku/cipher) fire
+    if ($("#check")) { click($("#check")); await sleep(700); }
+  }
+
+  try {
+    // jsdom dispatches DOMContentLoaded late; let the engine's auto-init fire
+    // once now so it can't re-render the corridor mid-flow.
+    await sleep(150);
+    window.localStorage.removeItem(KEY);
     window.Engine.init();
-    click(window.document.querySelector('.door[data-index="1"]')); // room 2 unlocked now (room1 solved)
+    const order = JSON.parse(window.localStorage.getItem(KEY)).order;
+
+    // route must be a permutation of all room indices
+    const perm = [...order].sort((a, b) => a - b).join(",");
+    if (perm !== ROOMS.map((_, i) => i).join(",")) fail("route is not a permutation: " + order);
+
+    // exactly one door open at the start, and it is order[0]
+    const open = [...window.document.querySelectorAll(".door.open")];
+    if (open.length !== 1 || +open[0].dataset.index !== order[0])
+      fail("start should be the single open door order[0]=" + order[0] + ", got " + open.map(d => d.dataset.index));
+    else console.log("  PASS random start = room " + order[0] + " (" + ROOMS[order[0]].name + ")");
+
+    click($("#btn-teacher"));                       // enable teacher mode
+    click(window.document.querySelector('.door[data-index="' + order[0] + '"]')); // enter start
+
+    for (let k = 0; k < order.length; k++) {
+      const idx = order[k];
+      const head = $(".room-head h2");
+      if (!head || head.textContent !== ROOMS[idx].name)
+        throw new Error("step " + (k + 1) + ": expected room " + ROOMS[idx].name + ", got " + (head && head.textContent));
+      await solveCurrentRoom();
+
+      if (k < order.length - 1) {
+        if (!$(".key-reveal")) throw new Error("step " + (k + 1) + ": no key-earned screen");
+        if ($(".key-reveal").textContent.trim() !== ROOMS[idx].key)
+          fail("step " + (k + 1) + ": wrong key shown");
+        click($("#next"));                          // → lock screen for next route stop
+        if (!$(".lockscreen")) throw new Error("step " + (k + 1) + ": no lock screen");
+        click($("#usekey"));                        // auto-fill predecessor's key
+        await sleep(750);                           // unlock animation → next room
+      }
+    }
+    if ($(".escape-msg")) console.log("  PASS drove full random route of " + order.length + " rooms → ESCAPED");
+    else fail("did not reach the escape screen after solving every room");
+
+    // wrong key must be rejected
+    window.localStorage.removeItem(KEY);
+    window.Engine.init();
+    const ord2 = JSON.parse(window.localStorage.getItem(KEY)).order;
+    click(window.document.querySelector('.door[data-index="' + ord2[0] + '"]')); // enter start
+    // mark start solved so its successor becomes unlocked, then open the lock
+    window.localStorage.setItem(KEY, JSON.stringify({ solved: [ROOMS[ord2[0]].id], order: ord2 }));
+    window.Engine.init();
+    click(window.document.querySelector('.door[data-index="' + ord2[1] + '"]')); // second stop → lock
     if ($(".lockscreen")) {
       $("#keyin").value = "WRONGKEY";
       click($("#unlock"));
-      if (!$(".lock-msg") || !$(".lock-msg").textContent.includes("not the right key")) { flowFails++; console.log("  FAIL wrong key not rejected"); }
-      else console.log("  PASS wrong key rejected");
-    }
-  } catch (e) { flowFails++; console.log("  FAIL flow threw:", e.message); }
+      if ($(".lock-msg") && $(".lock-msg").textContent.includes("not the right key"))
+        console.log("  PASS wrong key rejected at locked door");
+      else fail("wrong key was not rejected");
+    } else fail("second stop did not show a lock screen");
+  } catch (e) { fail("flow threw: " + e.message); console.log(String(e.stack).split("\n").slice(0, 3).join("\n")); }
 
   const fails = window.__fails + flowFails;
   console.log(fails === 0 ? "\n✅ ALL SMOKE-TESTS PASSED" : `\n❌ ${fails} FAILURE(S)`);

@@ -17,20 +17,17 @@ const path = require("path");
 
   // Enable teacher mode so we can reveal answers for nicer screenshots
   async function enterRoomAndReveal(index, name) {
-    await page.evaluate(() => { localStorage.removeItem("cs-escape-progress-v1"); });
     await page.goto(url);
     await page.waitForSelector(".corridor");
-    // mark all previous rooms solved directly so the door is enterable
+    // Force this room to be the (random) starting room so it opens with no lock.
     await page.evaluate((i) => {
-      const ids = ROOMS.slice(0, i).map(r => r.id);
-      localStorage.setItem("cs-escape-progress-v1", JSON.stringify({ solved: ids }));
+      const rest = ROOMS.map((_, k) => k).filter(k => k !== i);
+      localStorage.setItem("cs-escape-progress-v1", JSON.stringify({ solved: [], order: [i, ...rest] }));
     }, index);
     await page.goto(url);
     await page.waitForSelector(".corridor");
     await page.click("#btn-teacher");
     await page.click(`.door[data-index="${index}"]`);
-    // If a lock screen shows, use the key
-    if (await page.$(".lockscreen")) { await page.click("#usekey"); await page.waitForTimeout(800); }
     await page.waitForSelector("#puzzle");
     await page.screenshot({ path: `_test/shot-${name}.png` });
   }

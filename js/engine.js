@@ -8,28 +8,46 @@ const Engine = (() => {
   const app = () => document.getElementById("app");
 
   let solved = new Set();      // ids of solved rooms
+  let order = [];              // randomised route: a permutation of room indices
   let teacherMode = false;
 
   /* ---------------------------------------------------------------- state */
+  // Fisher–Yates shuffle of the room indices → each game has a random route.
+  function newOrder() {
+    const a = ROOMS.map((_, i) => i);
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
   function load() {
     try {
       const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
       solved = new Set(raw.solved || []);
-    } catch (e) { solved = new Set(); }
+      order = (Array.isArray(raw.order) && raw.order.length === ROOMS.length)
+        ? raw.order : newOrder();
+    } catch (e) { solved = new Set(); order = newOrder(); }
   }
   function save() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ solved: [...solved] }));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ solved: [...solved], order }));
   }
   function reset() {
     solved = new Set();
+    order = newOrder();          // a brand-new random route each reset
     save();
     renderCorridor();
   }
 
-  const isSolved   = (i) => solved.has(ROOMS[i].id);
-  const isUnlocked = (i) => i === 0 || isSolved(i - 1);
-  const earnedKeys = () => ROOMS.filter((r, i) => isSolved(i) && r.key)
-                                .map(r => ({ key: r.key, from: r.name }));
+  // Route helpers: position of a room on the route, and its neighbours.
+  const pathPos     = (i) => order.indexOf(i);
+  const predecessor = (i) => { const p = pathPos(i); return p > 0 ? order[p - 1] : -1; };
+  const successor   = (i) => { const p = pathPos(i); return p < order.length - 1 ? order[p + 1] : -1; };
+  const isStart     = (i) => order[0] === i;
+  const isSolved    = (i) => solved.has(ROOMS[i].id);
+  const isUnlocked  = (i) => isStart(i) || (predecessor(i) >= 0 && isSolved(predecessor(i)));
+  const earnedKeys  = () => order.filter(i => isSolved(i) && ROOMS[i].key)
+                                 .map(i => ({ key: ROOMS[i].key, from: ROOMS[i].name }));
 
   /* --------------------------------------------------------- corridor view */
   function renderCorridor() {
@@ -40,12 +58,11 @@ const Engine = (() => {
     const doors = ROOMS.map((r, i) => {
       const open = isUnlocked(i), got = isSolved(i);
       const cls = got ? "solved" : open ? "open" : "locked";
-      const badge = got ? "✓" : open ? "" : "🔒";
+      const badge = got ? "✓" : open ? (isStart(i) && !got ? "★" : "🔓") : "🔒";
       return `
         <button class="door ${cls}" data-index="${i}"
                 style="--door:${r.colour}"
                 aria-label="${r.name} – ${r.place} (${got ? "completed" : open ? "available" : "locked"})">
-          <span class="door-num">${i + 1}</span>
           <span class="door-icon">${r.icon}</span>
           <span class="door-name">${r.name}</span>
           <span class="door-place">${r.place}</span>
@@ -70,13 +87,14 @@ const Engine = (() => {
         <span class="keyring-label">Key-ring:</span> ${keyring}
       </section>
 
-      <p class="corridor-hint">Pick the glowing door. Solve the puzzle inside to
-        earn a key 🔑 that unlocks the next door.</p>
+      <p class="corridor-hint">Your route is <strong>randomised</strong> — your
+        start (★) and the order of the rooms are different every game. Solve the
+        glowing door to earn a key 🔑 that reveals where to go next.</p>
 
       <section class="corridor">${doors}</section>
 
-      ${done === total ? `<div class="all-clear">🏆 Every room escaped! Re-open the
-        Grey Room to see the escape message again.</div>` : ""}
+      ${done === total ? `<div class="all-clear">🏆 Every room escaped! Solve all
+        rooms again (Reset) for a brand-new random route.</div>` : ""}
 
       <footer class="foot">
         <button class="link-btn" id="btn-teacher">${teacherMode ? "🔓 Teacher mode: ON" : "🔒 Teacher mode"}</button>
@@ -98,16 +116,18 @@ const Engine = (() => {
     if (!isUnlocked(i)) {
       const door = app().querySelector(`.door[data-index="${i}"]`);
       door.classList.remove("shake"); void door.offsetWidth; door.classList.add("shake");
-      toast(`🔒 Locked. Solve "${ROOMS[i - 1].name}" first to earn its key.`);
+      const need = predecessor(i);
+      toast(need >= 0 ? `🔒 Locked. Solve "${ROOMS[need].name}" first to earn its key.`
+                      : `🔒 Locked.`);
       return;
     }
-    if (i === 0 || isSolved(i)) return enterRoom(i);
+    if (isStart(i) || isSolved(i)) return enterRoom(i);
     showLock(i);            // unlocked-but-not-entered → key lock screen
   }
 
   /* ------------------------------------------------------------ lock screen */
   function showLock(i) {
-    const prev = ROOMS[i - 1];
+    const prev = ROOMS[predecessor(i)];
     const room = ROOMS[i];
     app().innerHTML = `
       <div class="room-view" style="--accent:${room.colour}">
@@ -173,7 +193,7 @@ const Engine = (() => {
           <span class="room-ic">${room.icon}</span>
           <div>
             <h2>${room.name}</h2>
-            <p class="room-place">${room.place} • Room ${i + 1} of ${ROOMS.length}</p>
+            <p class="room-place">${room.place} • Step ${pathPos(i) + 1} of ${ROOMS.length}</p>
           </div>
         </header>
         <p class="instructions">${room.blurb}</p>
@@ -235,8 +255,10 @@ const Engine = (() => {
     save();
     celebrate();
 
-    const isLast = i === ROOMS.length - 1;
-    if (isLast) return showEscape();
+    if (solved.size === ROOMS.length) return showEscape();   // every room done → win
+
+    const nextIdx = successor(i);
+    const hasNext = nextIdx >= 0 && !isSolved(nextIdx);
 
     // Show the key-earned screen
     setTimeout(() => {
@@ -247,14 +269,16 @@ const Engine = (() => {
             <h2>${firstTime ? "Room escaped!" : "Solved again!"}</h2>
             <p>You earned the key:</p>
             <div class="key-reveal">${room.key}</div>
-            <p class="key-hint">Use it to unlock <strong>${ROOMS[i + 1].name} — ${ROOMS[i + 1].place}</strong>.</p>
+            <p class="key-hint">${hasNext
+              ? `Use it to unlock <strong>${ROOMS[nextIdx].name} — ${ROOMS[nextIdx].place}</strong>, the next stop on your route.`
+              : `Head back to the corridor for your next door.`}</p>
             <div class="key-actions">
-              <button class="btn" id="next">Go to the next door →</button>
+              ${hasNext ? `<button class="btn" id="next">Go to the next door →</button>` : ""}
               <button class="btn ghost" id="corridor">Back to corridor</button>
             </div>
           </div>
         </div>`;
-      document.getElementById("next").addEventListener("click", () => showLock(i + 1));
+      if (hasNext) document.getElementById("next").addEventListener("click", () => showLock(nextIdx));
       document.getElementById("corridor").addEventListener("click", renderCorridor);
     }, 500);
   }
@@ -305,9 +329,14 @@ const Engine = (() => {
   }
 
   /* ---------------------------------------------------------------- init */
-  function init() { load(); renderCorridor(); }
+  function init() { load(); save(); renderCorridor(); }   // persist the route on first run
 
   return { init };
 })();
 
-window.addEventListener("DOMContentLoaded", Engine.init);
+// Init once the DOM is ready — or immediately if it already is (robust to the
+// script being deferred or loaded after DOMContentLoaded has fired).
+if (document.readyState === "loading")
+  window.addEventListener("DOMContentLoaded", Engine.init);
+else
+  Engine.init();
