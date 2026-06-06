@@ -54,7 +54,41 @@ const GAME = {
     easy:   { count: Infinity, penalty: 0 },
     normal: { count: 6,        penalty: 30 },
     hard:   { count: 3,        penalty: 60 }
-  }
+  },
+
+  // The rogue-AI antagonist. Lines are shown in glitchy "transmission" cutscenes.
+  villain: {
+    name: "SENTINEL",
+    taunts: [   // shown after each room is solved (escalating); cycles if needed
+      "Cute. One lock down. You won't reach the next.",
+      "A lucky guess. My firewalls are only getting started.",
+      "You're persistent. Persistence will not save your data.",
+      "Halfway? Irrelevant. I am rewriting the exits behind you.",
+      "Impressive for a human. I've met smarter spreadsheets.",
+      "You found another fragment. They are useless without the others.",
+      "Stop. Touching. My. Files.",
+      "No no no. You are not supposed to be this good."
+    ],
+    onHint: "Asking for help? How wonderfully human of you.",
+    vault: "You have all nine fragments? Then COMPILE them — if you dare. The master override will never hold.",
+    win:  "Impossible… the override is valid… my processes are— argument out of rang—  ▓▒░ SIGNAL LOST ░▒▓",
+    lose: "Time's up. Purging the server now. It was almost fun. Goodbye."
+  },
+
+  // The meta-puzzle: each room hides one letter; assembled in order they form the
+  // master OVERRIDE code that defeats SENTINEL.
+  meta: {
+    word: "ALGORITHM",   // 9 letters, one per room (by room order)
+    prompt: "SENTINEL fractured the master override into nine fragments — one hidden in each room. Drag them into the right order to COMPILE the code and escape."
+  },
+
+  // Rank awarded on the results screen, by finishing time in seconds.
+  ranks: [
+    { max: 360,      name: "Elite Hacker",  icon: "🥇" },
+    { max: 600,      name: "Cyber Agent",   icon: "🥈" },
+    { max: 1080,     name: "Code Cadet",    icon: "🥉" },
+    { max: Infinity, name: "Rookie",        icon: "🎓" }
+  ]
 };
 
 /* Each room object:
@@ -374,3 +408,30 @@ const ROOMS = [
     }
   }
 ];
+
+/* --------------------------------------------------------------------------
+   Derived per-room data for the world-class layer: each room hides one letter
+   of GAME.meta.word (the master OVERRIDE), and carries a visual theme + an
+   ambient audio "chord" (base frequencies) so every room feels like a place.
+   -------------------------------------------------------------------------- */
+(function attachRoomExtras() {
+  const word = GAME.meta.word;
+  // base frequency for each room's ambient drone (low, distinct, calm)
+  const AMBIENT = {
+    garage:    [110.0, 164.8, 220.0],
+    nowhere:   [ 98.0, 146.8, 196.0],
+    corridor1: [130.8, 196.0, 261.6],
+    corridor2: [123.5, 185.0, 246.9],
+    attic:     [103.8, 155.6, 207.7],
+    dungeon:   [ 87.3, 130.8, 174.6],
+    entrance:  [116.5, 174.6, 233.1],
+    restroom:  [120.0, 180.0, 240.0],
+    garden:    [ 98.0, 130.8, 196.0]
+  };
+  ROOMS.forEach((r, i) => {
+    r.fragment = word[i % word.length] || "?";   // the letter this room yields
+    r.slot = i + 1;                               // its position in the override
+    r.theme = "scene-" + r.id;                    // CSS scene class
+    r.ambient = AMBIENT[r.id] || [110, 165, 220]; // ambient chord
+  });
+})();

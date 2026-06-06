@@ -7,69 +7,69 @@ const KEY = "cs-escape-progress-v1";
 
 (async () => {
   const browser = await chromium.launch();
-  const page = await browser.newPage({ viewport: { width: 1100, height: 950 }, deviceScaleFactor: 2 });
+  const page = await browser.newPage({ viewport: { width: 1100, height: 980 }, deviceScaleFactor: 2 });
   const errors = [];
   page.on("pageerror", e => errors.push(e.message));
   page.on("console", m => { if (m.type() === "error") errors.push("console: " + m.text()); });
-  const TPW = Buffer.from("TXJXYWRlaXNHcmVhdA==", "base64").toString();   // teacher password (not in plaintext)
+  const TPW = Buffer.from("TXJXYWRlaXNHcmVhdA==", "base64").toString();
   page.on("dialog", d => d.accept(TPW));               // teacher-password prompt
 
   const wait = ms => page.waitForTimeout(ms);
-  async function fresh(state) {
+  const has = sel => page.$(sel);
+  async function setState(state) {
     await page.goto(url);
     await page.evaluate(s => { s ? localStorage.setItem("cs-escape-progress-v1", JSON.stringify(s)) : localStorage.removeItem("cs-escape-progress-v1"); }, state || null);
     await page.goto(url);
   }
+  async function solveCurrent() {
+    if (await has("#reveal")) await page.click("#reveal");
+    await wait(1200);
+    if (await has("#check")) { await page.click("#check"); await wait(700); }
+  }
 
-  // Terminal boot intro (let the typewriter finish)
-  await fresh(null);
+  // 1. Terminal boot intro
+  await setState(null);
   await page.waitForSelector(".intro-card").catch(() => {});
   await wait(5200);
   await page.screenshot({ path: "_test/shot-intro.png" });
 
-  // Corridor with the live particle background + glowing start door
-  if (await page.$("#begin")) await page.click("#begin");
-  await page.waitForSelector(".corridor");
-  await wait(700);
+  // 2. Corridor
+  if (await has("#begin")) await page.click("#begin");
+  await page.waitForSelector(".corridor"); await wait(700);
   await page.screenshot({ path: "_test/shot-corridor.png" });
 
-  // Settings modal
-  await page.click("#hud-settings");
-  await page.waitForSelector(".modal");
+  // 3. Settings
+  await page.click("#hud-settings"); await page.waitForSelector(".modal");
   await page.screenshot({ path: "_test/shot-settings.png" });
-  if (await page.$("#set-close")) await page.click("#set-close");
+  if (await has("#set-close")) await page.click("#set-close");
 
-  // A room — force it to be the start so it opens with no lock
-  async function room(index, name) {
-    const rest = await page.evaluate(i => ROOMS.map((_, k) => k).filter(k => k !== i), index);
-    await fresh({ solved: [], order: [index, ...rest], introSeen: true });
-    await page.waitForSelector(".corridor");
-    await page.click(`.door[data-index="${index}"]`);
-    await page.waitForSelector("#puzzle");
-    await wait(500);
-    await page.screenshot({ path: `_test/shot-${name}.png` });
-  }
-  await room(5, "6-sudoku");
-  await room(0, "1-anagram");
-
-  // Escape + fireworks — pre-solve 8 of 9, then crack the last room
-  await page.evaluate(() => {
-    const ids = ROOMS.map(r => r.id);
-    localStorage.setItem("cs-escape-progress-v1", JSON.stringify({
-      solved: ids.slice(0, 8), order: ROOMS.map((_, i) => i), introSeen: true, startedAt: Date.now() - 425000
-    }));
-  });
-  await page.goto(url);
+  // 4. SENTINEL transmission + fragment (key-earned screen of a non-final room)
+  await setState({ solved: [], order: [0, 1, 2, 3, 4, 5, 6, 7, 8], introSeen: true });
   await page.waitForSelector(".corridor");
-  await page.click("#btn-teacher");                 // dialog auto-accepts password
-  await wait(150);
-  await page.click('.door[data-index="8"]');        // last room → lock
-  if (await page.$("#usekey")) { await page.click("#usekey"); await wait(800); }
-  if (await page.$("#reveal")) await page.click("#reveal");
-  await wait(1400);
-  if (await page.$("#check")) await page.click("#check");
-  await wait(1200);
-  await page.screenshot({ path: "_test/shot-escape.png" });
+  await page.click("#btn-teacher"); await wait(150);     // dialog accepts password
+  await page.click('.door[data-index="0"]');
+  await page.waitForSelector("#puzzle");
+  await page.screenshot({ path: "_test/shot-room-themed.png" });   // themed room
+  await solveCurrent();
+  await wait(900); await wait(2600);                      // key screen + taunt typing
+  await page.screenshot({ path: "_test/shot-transmission.png" });
+
+  // 5. Datapad / journal
+  if (await has("#hud-journal")) { await page.click("#hud-journal"); await page.waitForSelector(".jfrags"); await page.screenshot({ path: "_test/shot-journal.png" }); if (await has("#j-close")) await page.click("#j-close"); }
+
+  // 6. Vault meta-puzzle + 7. Results — pre-solve 8 of 9, crack the last
+  await setState({ solved: ["garage","nowhere","corridor1","corridor2","attic","dungeon","entrance","restroom"],
+                   order: [0,1,2,3,4,5,6,7,8], introSeen: true, startedAt: Date.now() - 300000 });
+  await page.waitForSelector(".corridor");
+  await page.click("#btn-teacher"); await wait(150);
+  await page.click('.door[data-index="8"]');
+  if (await has("#usekey")) { await page.click("#usekey"); await wait(800); }
+  await solveCurrent();
+  await wait(1000);
+  if (await has(".vault")) { await page.screenshot({ path: "_test/shot-vault.png" }); }
+  if (await has("#vault-skip")) { await page.click("#vault-skip"); await wait(1600); }
+  await wait(800);
+  await page.screenshot({ path: "_test/shot-results.png" });
 
   console.log(errors.length ? "PAGE ERRORS:\n" + errors.join("\n") : "No page errors.");
   await browser.close();

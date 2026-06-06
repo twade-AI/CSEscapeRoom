@@ -464,3 +464,82 @@ body.timer-low #fx-glow{background:radial-gradient(125% 95% at 50% 50%,transpare
 body.rm #fx-scan{display:none}
 body.rm .hero h1,body.rm .intro-card h1,body.rm .door.open,body.rm .intro-key,body.rm .padlock,
 body.rm .room-view,body.rm .tile,body.rm .term-chip,body.rm .frag-chip{animation:none}
+
+/* ===================================================================
+   WORLD-CLASS LAYER — villain, vault meta-puzzle, results, journal, scenes
+   =================================================================== */
+/* SENTINEL transmissions + animated eye */
+.transmission{display:flex;align-items:center;gap:14px;background:#10060a;border:1px solid #ff2d55;
+  border-radius:12px;padding:.7rem 1rem;margin:1rem auto;max-width:580px;text-align:left;box-shadow:0 0 30px -10px #ff2d55}
+.transmission .tx-line{margin:0;color:#ffd0d8;font-family:"Consolas",monospace;font-size:.95rem}
+.transmission .tx-line b{color:#ff5470}
+.sentinel-eye{flex:none;filter:drop-shadow(0 0 8px #ff2d55)}
+.sentinel-eye .eye-rot{transform-origin:60px 60px;animation:spin 7s linear infinite}
+.sentinel-eye .eye-pupil{animation:look 5s ease-in-out infinite}
+@keyframes look{0%,100%{transform:translateX(-6px)}50%{transform:translateX(6px)}}
+.transmission.defeated{border-color:#36c46a;box-shadow:0 0 30px -10px #36c46a}
+.transmission.defeated .tx-line{color:#d9ffe7}.transmission.defeated .tx-line b{color:#36c46a}
+.transmission.defeated .sentinel-eye{filter:grayscale(.6) drop-shadow(0 0 6px #36c46a);opacity:.7}
+body.rm .sentinel-eye .eye-rot,body.rm .sentinel-eye .eye-pupil{animation:none}
+
+/* fragment reward card */
+.fragment-card{margin:.6rem auto;background:#0e1430;border:1px dashed var(--accent);border-radius:10px;padding:.5rem 1.1rem;display:inline-block}
+.frag-letter{font-weight:900;font-size:1.5rem;color:var(--accent);letter-spacing:.1em;margin-left:.3rem;text-shadow:0 0 14px var(--accent)}
+
+/* vault meta-puzzle */
+.vault-slots,.vault-tray{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin:1rem 0;min-height:64px}
+.vault-tray{border-top:1px dashed var(--line);padding-top:.8rem}
+.vslot{width:52px;height:62px;border:2px dashed var(--line);border-radius:10px;display:grid;place-items:center;position:relative;background:#0b1024}
+.vslot-num{position:absolute;top:2px;left:6px;font-size:.6rem;color:var(--muted)}
+.vtile{width:52px;height:62px;border-radius:10px;display:grid;place-items:center;position:relative;cursor:grab;user-select:none;
+  background:linear-gradient(180deg,#fff7d6,#f3d473);color:#3a2c00;box-shadow:0 3px 0 #c9a13a,0 0 18px -5px var(--door,#f4c430)}
+.vtile-letter{font-weight:900;font-size:1.5rem}
+.vtile-num{position:absolute;bottom:1px;right:5px;font-size:.55rem;color:#7a5b00}
+.vtile.placed{box-shadow:0 2px 0 #c9a13a}
+.vault-word{text-align:center;font-family:"Consolas",monospace;font-size:1.7rem;letter-spacing:.32em;color:var(--muted);min-height:2rem;font-weight:800;margin-top:.4rem}
+.vault-word.ok{color:var(--good);text-shadow:0 0 18px var(--good)}
+
+/* results: stats, rank, badges */
+.result-stats{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin:1rem 0}
+.result-stats div{background:#0e1430;border:1px solid var(--line);border-radius:10px;padding:.6rem 1rem;min-width:84px}
+.result-stats b{display:block;font-size:1.5rem;color:var(--accent)}
+.result-stats small{color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-size:.7rem}
+.rank{font-size:1.2rem;margin:.4rem 0}
+.badges{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin:.8rem auto 1rem;max-width:640px}
+.badge{display:flex;flex-direction:column;align-items:center;width:86px;background:#0e1430;border:1px solid var(--line);
+  border-radius:10px;padding:.5rem;opacity:.38;filter:grayscale(1);font-size:1.4rem;transition:transform .2s}
+.badge.earned{opacity:1;filter:none;border-color:var(--warn);box-shadow:0 0 18px -6px var(--warn)}
+.badge.earned:hover{transform:translateY(-3px)}
+.badge small{font-size:.62rem;color:var(--muted);margin-top:.25rem;text-align:center;font-family:var(--font)}
+
+/* leaderboard */
+.lb-table{width:100%;border-collapse:collapse;margin-top:1rem}
+.lb-table th,.lb-table td{border-bottom:1px solid var(--line);padding:.5rem .6rem;text-align:left}
+.lb-table th{color:var(--accent);font-size:.85rem;text-transform:uppercase;letter-spacing:.06em}
+.lb-table td:nth-child(3){font-variant-numeric:tabular-nums;font-weight:700}
+
+/* lose screen */
+.room-view.lose{border-top-color:#ff2d55}
+.room-view.lose .big-key{filter:drop-shadow(0 0 22px #ff2d55)}
+
+/* datapad / clue journal */
+.jfrags{display:grid;grid-template-columns:repeat(auto-fill,minmax(74px,1fr));gap:8px;margin:.6rem 0}
+.jfrag{position:relative;border:1px solid var(--line);border-radius:10px;padding:.55rem;text-align:center;background:#0b1024}
+.jfrag.got{border-color:var(--door,var(--accent));box-shadow:0 0 16px -8px var(--door,var(--accent))}
+.jfrag.missing{opacity:.45}
+.jfrag-num{position:absolute;top:2px;left:6px;font-size:.6rem;color:var(--muted)}
+.jfrag-letter{display:block;font-size:1.5rem;font-weight:900;color:var(--door,var(--accent))}
+.jfrag small{color:var(--muted);font-size:.62rem}
+.jprogress{text-align:center;color:var(--warn);font-weight:700}
+
+/* per-room "sense of place" scenes */
+.room-view{position:relative;overflow:hidden}
+.room-view > :not(.scene-fx){position:relative;z-index:1}
+.scene-fx{position:absolute;inset:0;z-index:0;pointer-events:none;
+  background:radial-gradient(130% 100% at 82% 0%, rgba(255,255,255,.03), transparent 55%)}
+.scene-fx::before{content:var(--motif,"");position:absolute;right:-12px;bottom:-52px;font-size:200px;line-height:1;opacity:.06;animation:floaty 8s ease-in-out infinite}
+.scene-fx::after{content:var(--motif,"");position:absolute;left:-22px;top:-46px;font-size:130px;line-height:1;opacity:.045}
+body.rm .scene-fx::before{animation:none}
+.scene-garage{--motif:"⚙"} .scene-nowhere{--motif:"🛡"} .scene-corridor1{--motif:"🧠"}
+.scene-corridor2{--motif:"💻"} .scene-attic{--motif:"🗄"} .scene-dungeon{--motif:"🔢"}
+.scene-entrance{--motif:"📟"} .scene-restroom{--motif:"🧩"} .scene-garden{--motif:"🌿"} .vault{--motif:"🔐"}

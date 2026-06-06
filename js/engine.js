@@ -24,8 +24,11 @@ const Engine = (() => {
   let order = [];           // randomised route: a permutation of INCLUDED room indices
   let seed = 1;             // per-game seed for puzzle-content shuffling
   let startedAt = null, finishedAt = null;   // timer timestamps (ms)
-  let hintsUsed = 0, introSeen = false, teacherMode = false;
+  let hintsUsed = 0, wrong = 0, introSeen = false, teacherMode = false;
+  let bonusSolved = new Set();   // room ids whose bonus riddle is solved
+  let lost = false, tauntIdx = 0, scored = false;
   let timerLoop = null;
+  const SCORES_KEY = "cs-escape-scores-v1";
 
   /* ---------------------------------------------------------------- state */
   function shuffleIdx(a) {
@@ -42,7 +45,10 @@ const Engine = (() => {
     startedAt = typeof raw.startedAt === "number" ? raw.startedAt : null;
     finishedAt = typeof raw.finishedAt === "number" ? raw.finishedAt : null;
     hintsUsed = raw.hintsUsed || 0;
+    wrong = raw.wrong || 0;
+    bonusSolved = new Set(raw.bonusSolved || []);
     introSeen = !!raw.introSeen;
+    scored = !!raw.scored;
     const inc = Settings.includedRoomIds();
     solved = new Set((raw.solved || []).filter(id => inc.includes(id)));
     const incIdx = includedIdx();
@@ -52,11 +58,13 @@ const Engine = (() => {
   }
   function save() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(
-      { solved: [...solved], order, seed, startedAt, finishedAt, hintsUsed, introSeen }));
+      { solved: [...solved], order, seed, startedAt, finishedAt, hintsUsed, wrong,
+        bonusSolved: [...bonusSolved], introSeen, scored }));
   }
   function newGame(keepIntro = true) {
     solved = new Set(); seed = Rand.newSeed(); Rand.setSeed(seed);
-    startedAt = null; finishedAt = null; hintsUsed = 0;
+    startedAt = null; finishedAt = null; hintsUsed = 0; wrong = 0;
+    bonusSolved = new Set(); lost = false; tauntIdx = 0; scored = false;
     if (!keepIntro) introSeen = false;
     order = shuffleIdx(includedIdx());
     save();
@@ -71,6 +79,12 @@ const Engine = (() => {
   const isSolved    = (i) => solved.has(ROOMS[i].id);
   const isUnlocked  = (i) => isStart(i) || (predecessor(i) >= 0 && isSolved(predecessor(i)));
   const earnedKeys  = () => order.filter(i => isSolved(i) && ROOMS[i].key).map(i => ({ key: ROOMS[i].key, from: ROOMS[i].name }));
+  // fragments recovered so far (for the journal + the final vault meta-puzzle)
+  const collectedFragments = () => order.filter(isSolved)
+    .map(i => ({ letter: ROOMS[i].fragment, slot: ROOMS[i].slot, room: ROOMS[i].name, colour: ROOMS[i].colour }));
+  const allFragments = () => order.map(i => ({ letter: ROOMS[i].fragment, slot: ROOMS[i].slot, room: ROOMS[i].name, colour: ROOMS[i].colour }))
+    .sort((a, b) => a.slot - b.slot);
+  const statsNow = (vault) => ({ seconds: Math.floor(timerInfo().elapsed / 1000), hints: hintsUsed, wrong, bonus: bonusSolved.size, rooms: order.length, vault: !!vault });
 
   /* ----------------------------------------------------------------- timer */
   function timerInfo() {
@@ -90,17 +104,20 @@ const Engine = (() => {
     const s = Settings.get(), t = timerInfo();
     const timer = (s.timerMode === "off" || !t.started) ? "" :
       `<span class="hud-timer ${t.over ? "over" : ""}" role="timer" aria-label="${s.timerMode === "countdown" ? "Time remaining" : "Time elapsed"}">⏱ ${fmt(t.show)}</span>`;
-    hud.innerHTML = `${timer}
+    const journal = (t.started || solved.size) ? `<button class="hud-btn" id="hud-journal" aria-label="Open datapad (clue journal)">📓</button>` : "";
+    hud.innerHTML = `${timer}${journal}
       <button class="hud-btn" id="hud-sound" aria-label="${s.sound ? "Mute sound" : "Unmute sound"}" aria-pressed="${s.sound}">${s.sound ? "🔊" : "🔇"}</button>
       <button class="hud-btn" id="hud-settings" aria-label="Open settings">⚙</button>`;
     document.getElementById("hud-sound").onclick = () => { Settings.set({ sound: !Settings.get().sound }); if (Settings.get().sound) { Sound.resume(); Sound.play("key"); } renderHud(); };
     document.getElementById("hud-settings").onclick = () => { Sound.resume(); Settings.openModal(); };
+    const jb = document.getElementById("hud-journal"); if (jb) jb.onclick = () => { Sound.resume(); openJournal(); };
   }
   function startTimerLoop() {
     if (timerLoop) return;
     timerLoop = setInterval(() => {
-      const t = timerInfo();
-      const low = Settings.get().timerMode === "countdown" && t.started && finishedAt == null && t.show > 0 && t.show <= 10000;
+      const t = timerInfo(), countdown = Settings.get().timerMode === "countdown";
+      if (countdown && t.started && finishedAt == null && !lost && t.over) { document.body.classList.remove("timer-low"); return showLose(); }
+      const low = countdown && t.started && finishedAt == null && t.show > 0 && t.show <= 10000;
       document.body.classList.toggle("timer-low", low);
       if (t.started && finishedAt == null) {
         renderHud();
@@ -258,6 +275,7 @@ const Engine = (() => {
     renderHud();                 // show the clock immediately on first entry
     const room = ROOMS[i];
     if (window.FX) { FX.setAccent(room.colour); FX.flash(room.colour); }
+    if (window.Sound) Sound.setAmbientChord(room.ambient);
     const policy = Settings.hintPolicy();
     const hintsLeft = policy.count === Infinity ? Infinity : Math.max(0, policy.count - hintsUsed);
     const hintLabel = policy.count === Infinity ? "💡 Hint" : `💡 Hint (${hintsLeft} left)`;
@@ -274,7 +292,8 @@ const Engine = (() => {
       </details>` : "";
 
     app().innerHTML = `
-      <div class="room-view" style="--accent:${room.colour}">
+      <div class="room-view ${room.theme || ""}" style="--accent:${room.colour}">
+        <div class="scene-fx" aria-hidden="true"></div>
         <button class="back" id="back">← Back to corridor</button>
         <header class="room-head">
           <span class="room-ic" aria-hidden="true">${room.icon}</span>
@@ -306,14 +325,18 @@ const Engine = (() => {
     const handle = Puzzles[room.type].mount(document.getElementById("puzzle"), room, ctx);
 
     document.getElementById("check").addEventListener("click", () => {
-      if (handle.check()) { Sound.play("success"); completeRoom(i); } else { Sound.play("error"); }
+      if (handle.check()) { Sound.play("success"); completeRoom(i); }
+      else { Sound.play("error"); wrong++; save(); }
     });
     document.getElementById("hint").addEventListener("click", () => {
       const pol = Settings.hintPolicy();
       if (pol.count !== Infinity && hintsUsed >= pol.count) { Sound.play("error"); toast("No hints left — you'll have to crack it!"); return; }
       if (handle.hint) handle.hint();
       hintsUsed++; save(); Sound.play("pick");
-      if (pol.penalty) { addPenalty(pol.penalty); toast(`Hint used — +${pol.penalty}s on the clock`); }
+      if (pol.penalty) addPenalty(pol.penalty);
+      let msg = pol.penalty ? `Hint used — +${pol.penalty}s on the clock` : "Hint used";
+      if (hintsUsed === 1) msg += "  ·  🛰 " + GAME.villain.name + ": " + GAME.villain.onHint;
+      toast(msg);
       const left = pol.count === Infinity ? Infinity : Math.max(0, pol.count - hintsUsed);
       document.getElementById("hint").textContent = pol.count === Infinity ? "💡 Hint" : `💡 Hint (${left} left)`;
     });
@@ -333,6 +356,7 @@ const Engine = (() => {
       const msg = document.getElementById("bonusmsg");
       msg.textContent = ok ? "✅ Correct!" : "❌ Not quite — try again.";
       msg.className = "bonus-msg " + (ok ? "ok" : "bad");
+      if (ok) { bonusSolved.add(room.id); save(); }
       Sound.play(ok ? "success" : "error");
     });
   }
@@ -341,11 +365,12 @@ const Engine = (() => {
   function completeRoom(i) {
     const room = ROOMS[i], firstTime = !isSolved(i);
     solved.add(room.id); save();
-    if (solved.size === order.length) return showEscape();
     Sound.play("key"); celebrate();
     if (window.FX) FX.burst(window.innerWidth / 2, window.innerHeight * 0.34, room.colour, 30);
+    if (solved.size === order.length) return setTimeout(showVault, 650);
 
     const nextIdx = successor(i), hasNext = nextIdx >= 0 && !isSolved(nextIdx);
+    const taunt = Story.taunt(tauntIdx++);
     setTimeout(() => {
       app().innerHTML = `
         <div class="room-view" style="--accent:${room.colour}">
@@ -354,8 +379,12 @@ const Engine = (() => {
             <h2>${firstTime ? "Room escaped!" : "Solved again!"}</h2>
             <p>You earned the key:</p>
             <div class="key-reveal">${esc(room.key)}</div>
+            <div class="fragment-card">🧩 Fragment recovered — slot <b>#${room.slot}</b>:
+              <span class="frag-letter">${esc(room.fragment)}</span></div>
+            <div class="transmission small">${Story.avatar()}
+              <p class="tx-line"><b>${esc(Story.name())}</b> <span id="tx-type"></span></p></div>
             <p class="key-hint">${hasNext
-              ? `Use it to unlock <strong>${esc(ROOMS[nextIdx].name)} — ${esc(ROOMS[nextIdx].place)}</strong>, the next stop on your route.`
+              ? `Use the key to unlock <strong>${esc(ROOMS[nextIdx].name)} — ${esc(ROOMS[nextIdx].place)}</strong>.`
               : "Head back to the corridor for your next door."}</p>
             <div class="key-actions">
               ${hasNext ? `<button class="btn" id="next">Go to the next door →</button>` : ""}
@@ -363,39 +392,222 @@ const Engine = (() => {
             </div>
           </div>
         </div>`;
+      const tl = document.getElementById("tx-type");
+      if (window.FX) FX.typeWriter(tl, taunt); else tl.textContent = taunt;
       if (hasNext) document.getElementById("next").addEventListener("click", () => showLock(nextIdx));
       document.getElementById("corridor").addEventListener("click", renderCorridor);
     }, 500);
   }
 
-  function showEscape() {
+  /* ----------------------------------------- meta-puzzle: the vault */
+  function kbdLike(el) { if (typeof kbd === "function") kbd(el); else el.tabIndex = 0; }
+
+  function showVault() {
+    if (window.FX) { FX.setAccent("#ff5470"); FX.flash("#ff5470"); }
+    const frags = allFragments();                       // targets, sorted by slot
+    app().innerHTML = `
+      <div class="room-view vault" style="--accent:#ff5470">
+        <div class="scene-fx" aria-hidden="true"></div>
+        <div class="transmission">${Story.avatar()}
+          <p class="tx-line"><b>${esc(Story.name())}</b> <span id="vault-tx"></span></p></div>
+        <header class="room-head"><span class="room-ic" aria-hidden="true">🧷</span>
+          <div><h2>Compile the Master Override</h2>
+            <p class="room-place">Final lock • ${frags.length} fragments</p></div></header>
+        <p class="instructions">${esc(GAME.meta.prompt)}</p>
+        <div id="vault-slots" class="vault-slots"></div>
+        <div id="vault-tray" class="vault-tray"></div>
+        <div id="vault-word" class="vault-word"></div>
+        <div class="controls">
+          <button class="btn" id="vault-check">⚙ Compile</button>
+          ${teacherMode ? '<button class="btn ghost teacher" id="vault-skip">⏭ Compile (teacher)</button>' : ""}
+          <button class="btn ghost" id="vault-back">← Corridor</button>
+        </div>
+        <p id="vault-msg" class="feedback" role="status" aria-live="polite"></p>
+      </div>`;
+    const tx = document.getElementById("vault-tx");
+    if (window.FX) FX.typeWriter(tx, GAME.villain.vault); else tx.textContent = GAME.villain.vault;
+
+    const slotsEl = document.getElementById("vault-slots");
+    const trayEl = document.getElementById("vault-tray");
+    const slotByNum = {}, tiles = [];
+    const returnTile = t => { if (t._slot) { t._slot._tile = null; t._slot = null; } trayEl.appendChild(t); t.classList.remove("placed"); };
+    const placeTile = (t, slot) => {
+      if (slot._tile && slot._tile !== t) returnTile(slot._tile);
+      if (t._slot) t._slot._tile = null;
+      slot.appendChild(t); slot._tile = t; t._slot = slot; t.classList.add("placed");
+      Sound.play("place"); check(false);
+    };
+    frags.forEach(f => {
+      const slot = h("div", { class: "vslot" }, h("span", { class: "vslot-num" }, "#" + f.slot));
+      slot._num = f.slot;
+      DnD.makeDropzone(slot, { onDrop: t => placeTile(t, slot) });
+      slot.addEventListener("click", () => { if (slot._tile) returnTile(slot._tile); });
+      kbdLike(slot); slotByNum[f.slot] = slot; slotsEl.appendChild(slot);
+    });
+    const rnd = window.Rand ? Rand.forKey("vault") : Math.random;
+    frags.slice().sort(() => rnd() - 0.5).forEach(f => {
+      const tile = h("div", { class: "vtile", style: { "--door": f.colour } },
+        h("span", { class: "vtile-letter" }, f.letter), h("span", { class: "vtile-num" }, "#" + f.slot));
+      tile._num = f.slot;
+      DnD.makeDraggable(tile, {});
+      tile.addEventListener("click", () => { if (tile._slot) return returnTile(tile); const e = frags.map(x => slotByNum[x.slot]).find(s => !s._tile); if (e) placeTile(tile, e); });
+      kbdLike(tile); tiles.push(tile); trayEl.appendChild(tile);
+    });
+    const wordEl = document.getElementById("vault-word");
+    let won = false;
+    function check(announce) {
+      wordEl.textContent = frags.map(f => slotByNum[f.slot]._tile ? slotByNum[f.slot]._tile.querySelector(".vtile-letter").textContent : "·").join("");
+      const ok = frags.every(f => slotByNum[f.slot]._tile && slotByNum[f.slot]._tile._num === f.slot);
+      wordEl.classList.toggle("ok", ok);
+      if (ok && !won) {
+        won = true; Sound.play("escape"); if (window.FX) FX.flash("#36c46a");
+        const m = document.getElementById("vault-msg"); m.textContent = "✅ OVERRIDE COMPILED"; m.className = "feedback ok";
+        setTimeout(showResults, 1200);
+      } else if (announce && !ok) {
+        const m = document.getElementById("vault-msg"); m.textContent = "❌ Not compiled — match each fragment to its slot number."; m.className = "feedback bad"; Sound.play("error");
+      }
+    }
+    document.getElementById("vault-check").addEventListener("click", () => check(true));
+    document.getElementById("vault-back").addEventListener("click", renderCorridor);
+    const vs = document.getElementById("vault-skip");
+    if (vs) vs.addEventListener("click", () => { frags.forEach(f => { const t = tiles.find(x => x._num === f.slot && x._slot !== slotByNum[f.slot]); if (t) placeTile(t, slotByNum[f.slot]); }); check(false); });
+    renderHud(); window.scrollTo({ top: 0 });
+  }
+
+  /* ----------------------------------------- results / badges / share */
+  const loadScores = () => { try { return JSON.parse(localStorage.getItem(SCORES_KEY) || "[]"); } catch (e) { return []; } };
+  function saveScore(entry) { const a = loadScores(); a.push(entry); a.sort((x, y) => x.seconds - y.seconds); localStorage.setItem(SCORES_KEY, JSON.stringify(a.slice(0, 50))); }
+
+  function showResults() {
     if (finishedAt == null) { finishedAt = Date.now(); save(); }
-    renderHud();
-    Sound.play("escape");
-    if (window.FX) FX.fireworks();
-    const time = fmt(timerInfo().elapsed);
-    setTimeout(() => {
-      app().innerHTML = `
-        <div class="room-view escape">
-          <div class="key-earned">
-            <div class="big-key">🏆</div>
-            <h2>YOU ESCAPED!</h2>
-            <p class="intro-story">${esc(GAME.story.outro)}</p>
-            ${Settings.get().timerMode !== "off" ? `<p class="escape-time">⏱ Your time: <strong>${time}</strong></p>` : ""}
-            <p>The final message decodes to your real-world challenge:</p>
-            <blockquote class="escape-msg">${esc(GAME.escapeMessage)}</blockquote>
-            <div class="key-actions">
-              <button class="btn" id="cert">🏆 Print certificate</button>
-              <button class="btn ghost" id="again">↺ Play again</button>
-              <button class="btn ghost" id="corridor">Back to corridor</button>
-            </div>
+    if (window.FX) { FX.setAccent("#36c46a"); FX.fireworks(); }
+    Sound.play("escape"); celebrate(true);
+    const st = statsNow(true), rank = Story.rankFor(st.seconds), badges = Story.badgesFor(st);
+    const team = (Settings.get().teamName || "").trim() || "Your team";
+    if (!scored) { saveScore({ team, seconds: st.seconds, rank: rank.name, hints: st.hints, date: Date.now() }); scored = true; save(); }
+    const timeStr = fmt(st.seconds * 1000);
+    const badgeHTML = badges.map(b => `<span class="badge ${b.earned ? "earned" : ""}" title="${esc(b.hint || b.name)}">${b.icon}<small>${esc(b.name)}</small></span>`).join("");
+    app().innerHTML = `
+      <div class="room-view escape" style="--accent:#36c46a">
+        <div class="key-earned">
+          <div class="big-key">🏆</div>
+          <h2>YOU ESCAPED!</h2>
+          <div class="transmission defeated">${Story.avatar()}
+            <p class="tx-line"><b>${esc(Story.name())}</b> <span id="res-tx"></span></p></div>
+          <p class="intro-story">${esc(GAME.story.outro)}</p>
+          <div class="result-stats">
+            <div><b>${timeStr}</b><small>Time</small></div>
+            <div><b>${st.hints}</b><small>Hints</small></div>
+            <div><b>${st.wrong}</b><small>Wrong</small></div>
+            <div><b>${st.bonus}</b><small>Bonuses</small></div>
           </div>
-        </div>`;
-      document.getElementById("cert").addEventListener("click", printCertificate);
-      document.getElementById("again").addEventListener("click", () => { if (confirm("Play again with a fresh random route?")) reset(); });
-      document.getElementById("corridor").addEventListener("click", renderCorridor);
-      celebrate(true);
-    }, 500);
+          <div class="rank">${rank.icon} Rank: <strong>${esc(rank.name)}</strong></div>
+          <div class="badges">${badgeHTML}</div>
+          <p>Your final real-world challenge:</p>
+          <blockquote class="escape-msg">${esc(GAME.escapeMessage)}</blockquote>
+          <div class="key-actions">
+            <button class="btn" id="cert">🏆 Certificate</button>
+            <button class="btn ghost" id="card">📤 Result card</button>
+            <button class="btn ghost" id="lb">🏅 Leaderboard</button>
+            <button class="btn ghost" id="again">↺ Play again</button>
+            <button class="btn ghost" id="corridor">Corridor</button>
+          </div>
+        </div>
+      </div>`;
+    const tx = document.getElementById("res-tx");
+    if (window.FX) FX.typeWriter(tx, GAME.villain.win); else tx.textContent = GAME.villain.win;
+    document.getElementById("cert").addEventListener("click", printCertificate);
+    document.getElementById("card").addEventListener("click", () => shareCard(st, rank, badges, team));
+    document.getElementById("lb").addEventListener("click", showLeaderboard);
+    document.getElementById("again").addEventListener("click", () => { if (confirm("Play again with a fresh random route?")) reset(); });
+    document.getElementById("corridor").addEventListener("click", renderCorridor);
+    renderHud(); window.scrollTo({ top: 0 });
+  }
+
+  function showLeaderboard() {
+    const scores = loadScores().slice(0, 12);
+    const rows = scores.length
+      ? scores.map((s, i) => `<tr><td>${i + 1}</td><td>${esc(s.team)}</td><td>${fmt(s.seconds * 1000)}</td><td>${esc(s.rank)}</td><td>${s.hints}</td></tr>`).join("")
+      : `<tr><td colspan="5">No escapes recorded on this device yet.</td></tr>`;
+    app().innerHTML = `
+      <div class="room-view" style="--accent:#f4c430">
+        <button class="back" id="back">← Back</button>
+        <header class="room-head"><span class="room-ic" aria-hidden="true">🏅</span>
+          <div><h2>Leaderboard</h2><p class="room-place">Fastest escapes on this device</p></div></header>
+        <table class="lb-table"><thead><tr><th>#</th><th>Team</th><th>Time</th><th>Rank</th><th>Hints</th></tr></thead>
+          <tbody>${rows}</tbody></table>
+        <div class="key-actions"><button class="btn ghost" id="clear">Clear leaderboard</button></div>
+      </div>`;
+    document.getElementById("back").addEventListener("click", () => (finishedAt != null ? showResults() : renderCorridor()));
+    document.getElementById("clear").addEventListener("click", () => { if (confirm("Clear all saved scores on this device?")) { localStorage.removeItem(SCORES_KEY); showLeaderboard(); } });
+    renderHud();
+  }
+
+  function showLose() {
+    lost = true;
+    if (window.FX) { FX.setAccent("#ff2d55"); FX.flash("#ff2d55"); }
+    Sound.play("error");
+    app().innerHTML = `
+      <div class="room-view lose" style="--accent:#ff2d55">
+        <div class="key-earned">
+          <div class="big-key">💀</div>
+          <h2>SERVER PURGED</h2>
+          <div class="transmission">${Story.avatar()}
+            <p class="tx-line"><b>${esc(Story.name())}</b> <span id="lose-tx"></span></p></div>
+          <p class="key-hint">SENTINEL ran out the clock. Your team didn't escape in time.</p>
+          <div class="key-actions">
+            <button class="btn" id="retry">↺ Try again</button>
+            <button class="btn ghost" id="corridor">Corridor</button>
+          </div>
+        </div>
+      </div>`;
+    const tx = document.getElementById("lose-tx");
+    if (window.FX) FX.typeWriter(tx, GAME.villain.lose); else tx.textContent = GAME.villain.lose;
+    document.getElementById("retry").addEventListener("click", reset);
+    document.getElementById("corridor").addEventListener("click", renderCorridor);
+    renderHud();
+  }
+
+  function openJournal() {
+    const frags = allFragments(), have = new Set(collectedFragments().map(f => f.slot));
+    const cells = frags.map(f => `<div class="jfrag ${have.has(f.slot) ? "got" : "missing"}" style="--door:${f.colour}">
+        <span class="jfrag-num">#${f.slot}</span><span class="jfrag-letter">${have.has(f.slot) ? esc(f.letter) : "?"}</span>
+        <small>${have.has(f.slot) ? esc(f.room) : "locked"}</small></div>`).join("");
+    document.getElementById("modal-root").innerHTML = `
+      <div class="modal-backdrop" id="j-backdrop">
+        <div class="modal" role="dialog" aria-modal="true" aria-label="Datapad">
+          <div class="modal-head"><h2>📓 Datapad</h2><button class="icon-btn" id="j-close" aria-label="Close datapad">✕</button></div>
+          <div class="modal-body">
+            <p class="set-note">${esc(Story.name())} split the master override into ${frags.length} fragments — one per room. Recover them all, then compile them in order at the final lock.</p>
+            <div class="jfrags">${cells}</div>
+            <p class="jprogress">${have.size} / ${frags.length} fragments recovered</p>
+          </div>
+          <div class="modal-foot"><button class="btn" id="j-done">Close</button></div>
+        </div>
+      </div>`;
+    const close = () => { document.getElementById("modal-root").innerHTML = ""; };
+    document.getElementById("j-close").onclick = close;
+    document.getElementById("j-done").onclick = close;
+    document.getElementById("j-backdrop").addEventListener("click", e => { if (e.target.id === "j-backdrop") close(); });
+  }
+
+  function shareCard(st, rank, badges, team) {
+    const c = document.createElement("canvas"); c.width = 800; c.height = 420;
+    const x = c.getContext && c.getContext("2d");
+    if (!x) { toast("Result card isn't supported on this browser."); return; }
+    const g = x.createLinearGradient(0, 0, 800, 420); g.addColorStop(0, "#101630"); g.addColorStop(1, "#0a0e1a");
+    x.fillStyle = g; x.fillRect(0, 0, 800, 420);
+    x.strokeStyle = "#6ad0ff"; x.lineWidth = 4; x.strokeRect(14, 14, 772, 392);
+    x.textAlign = "center";
+    x.fillStyle = "#6ad0ff"; x.font = "bold 34px Segoe UI, Arial"; x.fillText("ESCAPED — Computer Science", 400, 78);
+    x.fillStyle = "#eaf0ff"; x.font = "bold 50px Segoe UI, Arial"; x.fillText(team, 400, 152);
+    x.fillStyle = "#9fb0d4"; x.font = "26px Segoe UI, Arial";
+    x.fillText("Time " + fmt(st.seconds * 1000) + "   ·   " + st.hints + " hints   ·   " + st.wrong + " wrong", 400, 206);
+    x.fillStyle = "#f4c430"; x.font = "bold 34px Segoe UI, Arial"; x.fillText(rank.icon + " " + rank.name, 400, 262);
+    x.fillStyle = "#eaf0ff"; x.font = "32px Segoe UI, Arial"; x.fillText(badges.filter(b => b.earned).map(b => b.icon).join("   "), 400, 322);
+    x.fillStyle = "#6b7aa0"; x.font = "18px Segoe UI, Arial"; x.fillText(new Date().toLocaleDateString(), 400, 378);
+    try { const a = document.createElement("a"); a.href = c.toDataURL("image/png"); a.download = "escape-result.png"; a.click(); toast("Result card downloaded 📤"); }
+    catch (e) { toast("Couldn't export the card on this browser."); }
   }
 
   /* --------------------------------------------------------- printing */
@@ -476,7 +688,11 @@ const Engine = (() => {
     load(); Rand.setSeed(seed); save();
     renderHud(); startTimerLoop();
     if (window.FX) FX.init();
-    if (!introSeen && solved.size === 0) showIntro(); else renderCorridor();
+    const t = timerInfo();
+    if (Settings.get().timerMode === "countdown" && t.started && finishedAt == null && t.over) showLose();
+    else if (order.length && solved.size === order.length) (finishedAt != null ? showResults() : showVault());
+    else if (!introSeen && solved.size === 0) showIntro();
+    else renderCorridor();
   }
 
   return { init };

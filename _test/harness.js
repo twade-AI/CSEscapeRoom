@@ -39,9 +39,9 @@ function inject(code) {
   window.document.body.appendChild(s);
 }
 const read = f => fs.readFileSync(path.join(__dirname, "..", f), "utf8");
-["js/data.js", "js/rng.js", "js/sound.js", "js/fx.js", "js/settings.js", "js/dragdrop.js", "js/puzzles.js", "js/engine.js"].forEach(f => inject(read(f)));
+["js/data.js", "js/rng.js", "js/sound.js", "js/fx.js", "js/story.js", "js/settings.js", "js/dragdrop.js", "js/puzzles.js", "js/engine.js"].forEach(f => inject(read(f)));
 // expose script-scoped consts to the Node side of the harness
-inject("window.Engine=Engine;window.ROOMS=ROOMS;window.Puzzles=Puzzles;window.GAME=GAME;window.DnD=DnD;window.Settings=Settings;window.Sound=Sound;window.Rand=Rand;window.FX=FX;");
+inject("window.Engine=Engine;window.ROOMS=ROOMS;window.Puzzles=Puzzles;window.GAME=GAME;window.DnD=DnD;window.Settings=Settings;window.Sound=Sound;window.Rand=Rand;window.FX=FX;window.Story=Story;");
 
 inject(`
 window.__fails = 0;
@@ -145,8 +145,16 @@ const click = el => el.dispatchEvent(new window.Event("click", { bubbles: true }
         await sleep(750);                           // unlock animation → next room
       }
     }
-    if ($(".escape-msg")) console.log("  PASS drove full random route of " + order.length + " rooms → ESCAPED");
-    else fail("did not reach the escape screen after solving every room");
+    // every room solved → the vault meta-puzzle appears
+    await sleep(950);
+    if (!$(".vault")) fail("vault meta-puzzle did not appear after the final room");
+    else {
+      console.log("  PASS reached the vault meta-puzzle");
+      if ($("#vault-skip")) click($("#vault-skip"));   // teacher 'compile' auto-solves
+      await sleep(1500);                               // vault solved → results
+    }
+    if ($(".escape-msg") && $(".badges")) console.log("  PASS compiled override → results + badges (ESCAPED)");
+    else fail("did not reach the results screen after the vault");
 
     // wrong key must be rejected
     window.localStorage.removeItem(KEY);

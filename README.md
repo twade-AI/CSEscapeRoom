@@ -13,6 +13,15 @@ on **GitHub Pages**, or **install it as an offline app** on classroom tablets.
 
 ## ✨ What's inside
 
+- 🧩 **Meta-puzzle finale** — every room hides one **fragment**; assemble all nine
+  in the final **vault** to compile the master override and escape. A **📓 Datapad**
+  tracks the fragments you've recovered.
+- 🤖 **A rogue-AI antagonist (SENTINEL)** that taunts you between rooms via glitchy
+  terminal transmissions — with a **data-wipe countdown** and a lose ending.
+- 🏅 **End-game payoff** — results screen with time, hints, accuracy, a **rank**,
+  unlockable **achievement badges**, a downloadable **result card** and a local
+  **leaderboard**.
+- 🖼️ **Bespoke rooms** — each room has its own scene motif and ambient audio bed.
 - 🎬 **Cinematic visuals** — a live particle-network background, neon glassmorphism
   panels, a **terminal boot intro**, glowing 3D doors, light-flash room transitions
   and a fireworks finish (all GPU-light and reduce-motion-aware).
@@ -28,9 +37,9 @@ on **GitHub Pages**, or **install it as an offline app** on classroom tablets.
 - ♿ **Accessibility** — keyboard play, screen-reader labels, reduce-motion, dyslexia-friendly font, high-contrast, colour-blind-safe doors and text sizing.
 - 📲 **Installable & works fully offline** (PWA).
 
-| Terminal boot intro | The escape 🎉 |
-|---|---|
-| ![intro](docs/screenshots/intro.png) | ![escape](docs/screenshots/escape.png) |
+| Terminal boot intro | The vault meta-puzzle | Results, rank & badges |
+|---|---|---|
+| ![intro](docs/screenshots/intro.png) | ![vault](docs/screenshots/vault.png) | ![results](docs/screenshots/results.png) |
 
 ---
 
@@ -121,8 +130,9 @@ index.html             the page (loads the scripts below)
 css/styles.css         styling, themes, print & accessibility styles
 js/data.js             puzzle content, answers, story & defaults  ← edit me
 js/rng.js              seeded RNG for per-game puzzle shuffling
-js/sound.js            synthesised sound effects (Web Audio, no files)
+js/sound.js            synthesised sound effects + ambient (Web Audio, no files)
 js/fx.js               visual effects — particle bg, flashes, fireworks, typewriter
+js/story.js            the SENTINEL antagonist, ranks & achievement badges
 js/settings.js         teacher settings + the ⚙ modal
 js/dragdrop.js         touch + mouse + keyboard drag-and-drop
 js/puzzles.js          the nine interactive puzzle types

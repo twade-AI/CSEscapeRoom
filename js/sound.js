@@ -4,7 +4,7 @@
    gracefully where Web Audio is unavailable (e.g. the jsdom test harness).
    ========================================================================== */
 const Sound = (() => {
-  let ctx = null, enabled = true, ambient = null;
+  let ctx = null, enabled = true, ambient = null, ambientOn = false, ambientFreqs = null;
 
   function ac() {
     if (ctx === null) {
@@ -42,27 +42,26 @@ const Sound = (() => {
 
   function startAmbient() {
     const a = ac(); if (!a || ambient) return;
-    const g = a.createGain(); g.gain.value = 0.04; g.connect(a.destination);
-    const o1 = a.createOscillator(); o1.type = "sine";     o1.frequency.value = 55;
-    const o2 = a.createOscillator(); o2.type = "triangle"; o2.frequency.value = 82.5;
+    const freqs = (ambientFreqs && ambientFreqs.length) ? ambientFreqs : [55, 82.5];
+    const g = a.createGain(); g.gain.value = 0.0001; g.connect(a.destination);
+    g.gain.linearRampToValueAtTime(0.045, a.currentTime + 1.2);
+    const oscs = freqs.map((f, i) => { const o = a.createOscillator(); o.type = i === 0 ? "sine" : "triangle"; o.frequency.value = f; o.connect(g); o.start(); return o; });
     const lfo = a.createOscillator(); lfo.frequency.value = 0.06;
-    const lfoG = a.createGain(); lfoG.gain.value = 0.02;
-    lfo.connect(lfoG).connect(g.gain);
-    o1.connect(g); o2.connect(g);
-    o1.start(); o2.start(); lfo.start();
-    ambient = { o1, o2, lfo, g };
+    const lfoG = a.createGain(); lfoG.gain.value = 0.015; lfo.connect(lfoG).connect(g.gain); lfo.start();
+    ambient = { oscs, lfo, g };
   }
   function stopAmbient() {
     if (!ambient) return;
-    try { ambient.o1.stop(); ambient.o2.stop(); ambient.lfo.stop(); ambient.g.disconnect(); } catch (e) {}
+    try { ambient.oscs.forEach(o => o.stop()); ambient.lfo.stop(); ambient.g.disconnect(); } catch (e) {}
     ambient = null;
   }
 
   return {
     play(name) { try { if (enabled && sfx[name]) sfx[name](); } catch (e) {} },
-    setEnabled(v) { enabled = !!v; if (!enabled) stopAmbient(); },
+    setEnabled(v) { enabled = !!v; if (!enabled) { ambientOn = false; stopAmbient(); } },
     isEnabled() { return enabled; },
-    setAmbient(v) { try { (v && enabled) ? startAmbient() : stopAmbient(); } catch (e) {} },
+    setAmbient(v) { try { ambientOn = !!v && enabled; if (ambientOn) startAmbient(); else stopAmbient(); } catch (e) {} },
+    setAmbientChord(freqs) { ambientFreqs = freqs; try { if (ambientOn) { stopAmbient(); startAmbient(); } } catch (e) {} },
     // browsers require a user gesture before audio can start
     resume() { const a = ac(); if (a && a.state === "suspended") a.resume(); }
   };
