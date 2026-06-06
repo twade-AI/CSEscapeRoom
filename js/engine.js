@@ -166,6 +166,7 @@ const Engine = (() => {
           <span class="door-name">${esc(r.name)}</span>
           <span class="door-place">${esc(r.place)}</span>
           <span class="door-badge" aria-hidden="true">${badge}</span>
+          <span class="door-handle" aria-hidden="true"></span>
         </button>`;
     }).join("");
 
@@ -191,6 +192,7 @@ const Engine = (() => {
         that reveals where to go next.</p>
 
       <section class="corridor">${doors}</section>
+      <div class="corridor-floor" aria-hidden="true"></div>
 
       ${done === total ? `<div class="all-clear">🏆 Every room escaped! Press <em>New game</em> for a fresh random route.</div>` : ""}
 

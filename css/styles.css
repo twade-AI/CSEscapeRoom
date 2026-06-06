@@ -7,6 +7,7 @@
   --accent:#6ad0ff; --good:#36c46a; --bad:#ff5470; --warn:#f4c430;
   --radius:16px; --shadow:0 10px 30px rgba(0,0,0,.35);
   --font:"Segoe UI",system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif;
+  --display:ui-monospace,"Cascadia Code","Cascadia Mono","SF Mono","Segoe UI Mono",Consolas,"Roboto Mono",Menlo,monospace;
 }
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
@@ -18,7 +19,8 @@ body{
   background-attachment:fixed;
 }
 #app{max-width:1040px;margin:0 auto;padding:clamp(14px,3vw,34px)}
-h1,h2,h3,h4{margin:0 0 .4em;line-height:1.15}
+h1,h2,h3,h4{margin:0 0 .4em;line-height:1.15;font-family:var(--display);letter-spacing:.01em}
+.subtitle,.keychip,.hud-timer,.rank,.result-stats b,.badge,.door-place{font-family:var(--display)}
 button{font-family:inherit}
 
 /* ---------- hero / progress ---------- */
@@ -45,27 +47,52 @@ button{font-family:inherit}
 .corridor-hint{text-align:center;color:var(--muted);margin:.2rem 0 1.4rem}
 
 /* ---------- corridor of doors ---------- */
-.corridor{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:16px}
+.corridor{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:18px}
 .door{
-  position:relative;cursor:pointer;color:var(--ink);text-align:center;
-  background:linear-gradient(180deg,var(--panel2),var(--panel));
-  border:2px solid var(--line);border-radius:14px;padding:18px 12px 16px;
-  display:flex;flex-direction:column;gap:.25rem;align-items:center;
-  transition:transform .15s,box-shadow .2s,border-color .2s;overflow:hidden;
+  position:relative;cursor:pointer;color:var(--ink);text-align:center;min-height:170px;
+  background:linear-gradient(180deg,var(--panel2),#10162c);
+  border:1px solid var(--line);border-radius:14px 14px 7px 7px;padding:16px;
+  display:flex;flex-direction:column;gap:.2rem;align-items:center;justify-content:flex-end;
+  overflow:hidden;transition:transform .18s,box-shadow .25s,border-color .2s;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04),0 12px 24px -14px #000;
 }
-.door::before{content:"";position:absolute;inset:0;background:var(--door);opacity:.10}
-.door::after{content:"";position:absolute;left:0;top:0;bottom:0;width:6px;background:var(--door)}
-.door .door-num{position:absolute;top:8px;left:12px;font-size:.8rem;color:var(--muted)}
-.door .door-icon{font-size:2.2rem;filter:drop-shadow(0 4px 6px rgba(0,0,0,.4))}
-.door .door-name{font-weight:800;letter-spacing:.02em}
-.door .door-place{font-size:.8rem;color:var(--muted)}
-.door .door-badge{position:absolute;top:8px;right:10px;font-size:1.1rem}
-.door.open{border-color:var(--door);box-shadow:0 0 0 1px var(--door),0 8px 26px rgba(0,0,0,.4),0 0 28px -6px var(--door)}
-.door.open:hover{transform:translateY(-4px)}
+/* coloured door "paint" + recessed panel so it reads as a door */
+.door::before{content:"";position:absolute;inset:0;opacity:.18;transition:opacity .25s;
+  background:radial-gradient(120% 75% at 50% -8%, var(--door), transparent 62%)}
+.door::after{content:"";position:absolute;inset:12px 16px 30px;border:1px solid rgba(255,255,255,.07);
+  border-radius:6px;box-shadow:inset 0 0 0 5px rgba(0,0,0,.10)}
+.door .door-icon{font-size:2.5rem;filter:drop-shadow(0 4px 8px rgba(0,0,0,.5));position:relative;z-index:1}
+.door .door-name{font-family:var(--display);font-weight:800;letter-spacing:.02em;position:relative;z-index:1}
+.door .door-place{font-size:.78rem;color:var(--muted);position:relative;z-index:1}
+.door .door-badge{position:absolute;top:8px;left:9px;font-size:.95rem;z-index:2;line-height:1.5;
+  background:rgba(11,16,36,.8);border:1px solid var(--line);border-radius:6px;padding:0 6px}
+.door .door-handle{position:absolute;right:9px;top:50%;width:7px;height:26px;border-radius:5px;z-index:2;
+  transform:translateY(-50%);background:var(--door);box-shadow:0 0 10px -1px var(--door);opacity:.85}
+.door:hover{transform:translateY(-3px)}
+.door.open{border-color:var(--door);box-shadow:0 0 0 1px var(--door),0 0 30px -6px var(--door),0 12px 26px -14px #000}
+.door.open::before{opacity:.32}
+.door.open .door-icon{animation:doorGlow 2.6s ease-in-out infinite}
+@keyframes doorGlow{0%,100%{filter:drop-shadow(0 4px 8px rgba(0,0,0,.5))}50%{filter:drop-shadow(0 0 11px var(--door)) drop-shadow(0 4px 8px rgba(0,0,0,.5))}}
 .door.solved{border-color:var(--good)}
-.door.solved .door-badge{color:var(--good)}
-.door.locked{filter:grayscale(.7) brightness(.7);cursor:not-allowed}
-.door.locked .door-icon{opacity:.5}
+.door.solved::before{opacity:.15;background:radial-gradient(120% 75% at 50% -8%, var(--good), transparent 62%)}
+.door.solved .door-badge{color:var(--good);border-color:var(--good)}
+.door.solved .door-handle{background:var(--good);box-shadow:0 0 10px -1px var(--good)}
+.door.locked{cursor:not-allowed;filter:saturate(.5) brightness(.84)}
+.door.locked .door-icon{opacity:.55}
+.door.locked .door-handle{opacity:.4}
+body.rm .door.open .door-icon{animation:none}
+
+/* perspective "tron" floor that grounds the corridor and fills the dead space */
+.corridor-floor{height:200px;margin-top:8px;position:relative;overflow:hidden;
+  -webkit-mask-image:linear-gradient(#000 0%,transparent 92%);mask-image:linear-gradient(#000 0%,transparent 92%)}
+.corridor-floor::before{content:"";position:absolute;left:-60%;right:-60%;top:0;bottom:-60px;
+  transform:perspective(300px) rotateX(64deg);transform-origin:top center;
+  background:
+    repeating-linear-gradient(90deg, rgba(106,208,255,.16) 0 1px, transparent 1px 64px),
+    repeating-linear-gradient(0deg, rgba(106,208,255,.14) 0 1px, transparent 1px 52px);
+  animation:floorScroll 8s linear infinite}
+@keyframes floorScroll{to{background-position:0 0,0 52px}}
+body.rm .corridor-floor::before{animation:none}
 .all-clear{text-align:center;margin-top:1.4rem;background:var(--panel);border:1px solid var(--good);
   border-radius:var(--radius);padding:1rem;color:var(--good)}
 .foot{display:flex;gap:1.2rem;justify-content:center;margin-top:1.8rem}
@@ -532,14 +559,25 @@ body.rm .sentinel-eye .eye-rot,body.rm .sentinel-eye .eye-pupil{animation:none}
 .jfrag small{color:var(--muted);font-size:.62rem}
 .jprogress{text-align:center;color:var(--warn);font-weight:700}
 
-/* per-room "sense of place" scenes */
+/* per-room "sense of place" scenes — each room gets its own ambient hue + motif */
 .room-view{position:relative;overflow:hidden}
 .room-view > :not(.scene-fx){position:relative;z-index:1}
 .scene-fx{position:absolute;inset:0;z-index:0;pointer-events:none;
   background:radial-gradient(130% 100% at 82% 0%, rgba(255,255,255,.03), transparent 55%)}
-.scene-fx::before{content:var(--motif,"");position:absolute;right:-12px;bottom:-52px;font-size:200px;line-height:1;opacity:.06;animation:floaty 8s ease-in-out infinite}
-.scene-fx::after{content:var(--motif,"");position:absolute;left:-22px;top:-46px;font-size:130px;line-height:1;opacity:.045}
+.scene-fx::before{content:var(--motif,"");position:absolute;right:-12px;bottom:-52px;font-size:210px;line-height:1;opacity:.08;animation:floaty 8s ease-in-out infinite}
+.scene-fx::after{content:var(--motif,"");position:absolute;left:-22px;top:-46px;font-size:135px;line-height:1;opacity:.055}
 body.rm .scene-fx::before{animation:none}
 .scene-garage{--motif:"⚙"} .scene-nowhere{--motif:"🛡"} .scene-corridor1{--motif:"🧠"}
 .scene-corridor2{--motif:"💻"} .scene-attic{--motif:"🗄"} .scene-dungeon{--motif:"🔢"}
 .scene-entrance{--motif:"📟"} .scene-restroom{--motif:"🧩"} .scene-garden{--motif:"🌿"} .vault{--motif:"🔐"}
+/* coloured canvas per room (the whole panel takes on the room's hue) */
+.scene-garage   .scene-fx{background:radial-gradient(120% 80% at 82% 2%, rgba(244,196,48,.16), transparent 56%),linear-gradient(0deg, rgba(244,196,48,.05), transparent 42%)}
+.scene-nowhere  .scene-fx{background:radial-gradient(120% 80% at 82% 2%, rgba(58,160,255,.17), transparent 56%)}
+.scene-corridor1 .scene-fx{background:radial-gradient(120% 80% at 82% 2%, rgba(255,140,43,.16), transparent 56%)}
+.scene-corridor2 .scene-fx{background:radial-gradient(120% 80% at 82% 2%, rgba(43,210,200,.15), transparent 56%)}
+.scene-attic    .scene-fx{background:radial-gradient(120% 80% at 82% 2%, rgba(255,84,112,.15), transparent 56%)}
+.scene-dungeon  .scene-fx{background:radial-gradient(120% 80% at 82% 2%, rgba(160,101,255,.17), transparent 56%),linear-gradient(0deg, rgba(120,80,200,.06), transparent 40%)}
+.scene-entrance .scene-fx{background:radial-gradient(120% 80% at 82% 2%, rgba(54,196,106,.15), transparent 56%)}
+.scene-restroom .scene-fx{background:radial-gradient(120% 80% at 82% 2%, rgba(185,205,235,.13), transparent 56%)}
+.scene-garden   .scene-fx{background:radial-gradient(120% 80% at 82% 2%, rgba(120,205,120,.16), transparent 56%),linear-gradient(0deg, rgba(120,205,120,.06), transparent 42%)}
+.vault          .scene-fx{background:radial-gradient(120% 80% at 82% 2%, rgba(255,45,85,.15), transparent 56%)}
