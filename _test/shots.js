@@ -1,7 +1,10 @@
-/* Capture screenshots of the corridor + several rooms to eyeball the design.
-   Dev-only. Uses Playwright with the locally-installed chromium. */
+/* Capture screenshots of the main screens to eyeball the design. Dev-only.
+   Uses Playwright with the locally-installed chromium. */
 const { chromium } = require("playwright");
 const path = require("path");
+
+const url = "file://" + path.join(__dirname, "..", "index.html");
+const KEY = "cs-escape-progress-v1";
 
 (async () => {
   const browser = await chromium.launch();
@@ -10,34 +13,39 @@ const path = require("path");
   page.on("pageerror", e => errors.push(e.message));
   page.on("console", m => { if (m.type() === "error") errors.push("console: " + m.text()); });
 
-  const url = "file://" + path.join(__dirname, "..", "index.html");
-  await page.goto(url);
+  async function fresh(state) {
+    await page.goto(url);
+    await page.evaluate(s => { s ? localStorage.setItem("cs-escape-progress-v1", JSON.stringify(s)) : localStorage.removeItem("cs-escape-progress-v1"); }, state || null);
+    await page.goto(url);
+  }
+
+  // Intro / story screen
+  await fresh(null);
+  await page.waitForSelector(".intro-card", { timeout: 4000 }).catch(() => {});
+  await page.screenshot({ path: "_test/shot-intro.png" });
+
+  // Corridor (with HUD) — dismiss intro
+  if (await page.$("#begin")) await page.click("#begin");
   await page.waitForSelector(".corridor");
   await page.screenshot({ path: "_test/shot-corridor.png" });
 
-  // Enable teacher mode so we can reveal answers for nicer screenshots
-  async function enterRoomAndReveal(index, name) {
-    await page.goto(url);
+  // Settings modal
+  await page.click("#hud-settings");
+  await page.waitForSelector(".modal");
+  await page.screenshot({ path: "_test/shot-settings.png" });
+  if (await page.$("#set-close")) await page.click("#set-close");
+
+  // A room — force a chosen room to be the start so it opens without a lock
+  async function room(index, name) {
+    const rest = await page.evaluate(i => ROOMS.map((_, k) => k).filter(k => k !== i), index);
+    await fresh({ solved: [], order: [index, ...rest], introSeen: true });
     await page.waitForSelector(".corridor");
-    // Force this room to be the (random) starting room so it opens with no lock.
-    await page.evaluate((i) => {
-      const rest = ROOMS.map((_, k) => k).filter(k => k !== i);
-      localStorage.setItem("cs-escape-progress-v1", JSON.stringify({ solved: [], order: [i, ...rest] }));
-    }, index);
-    await page.goto(url);
-    await page.waitForSelector(".corridor");
-    await page.click("#btn-teacher");
     await page.click(`.door[data-index="${index}"]`);
     await page.waitForSelector("#puzzle");
     await page.screenshot({ path: `_test/shot-${name}.png` });
   }
-
-  await enterRoomAndReveal(0, "1-anagram");
-  await enterRoomAndReveal(2, "3-crossword");
-  await enterRoomAndReveal(3, "4-spoterror");
-  await enterRoomAndReveal(4, "5-match");
-  await enterRoomAndReveal(5, "6-sudoku");
-  await enterRoomAndReveal(8, "9-cipher");
+  await room(0, "1-anagram");
+  await room(4, "5-match");
 
   console.log(errors.length ? "PAGE ERRORS:\n" + errors.join("\n") : "No page errors.");
   await browser.close();

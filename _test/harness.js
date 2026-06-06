@@ -28,6 +28,8 @@ if (!window.localStorage) {
 window.document.elementFromPoint = () => null;
 window.HTMLElement.prototype.setPointerCapture = () => {};
 window.HTMLElement.prototype.releasePointerCapture = () => {};
+window.matchMedia = window.matchMedia || (() => ({ matches: false, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {} }));
+window.print = window.print || function () {};
 
 function inject(code) {
   const s = window.document.createElement("script");
@@ -35,9 +37,9 @@ function inject(code) {
   window.document.body.appendChild(s);
 }
 const read = f => fs.readFileSync(path.join(__dirname, "..", f), "utf8");
-["js/data.js", "js/dragdrop.js", "js/puzzles.js", "js/engine.js"].forEach(f => inject(read(f)));
+["js/data.js", "js/rng.js", "js/sound.js", "js/settings.js", "js/dragdrop.js", "js/puzzles.js", "js/engine.js"].forEach(f => inject(read(f)));
 // expose script-scoped consts to the Node side of the harness
-inject("window.Engine=Engine;window.ROOMS=ROOMS;window.Puzzles=Puzzles;window.GAME=GAME;window.DnD=DnD;");
+inject("window.Engine=Engine;window.ROOMS=ROOMS;window.Puzzles=Puzzles;window.GAME=GAME;window.DnD=DnD;window.Settings=Settings;window.Sound=Sound;window.Rand=Rand;");
 
 inject(`
 window.__fails = 0;
@@ -68,6 +70,7 @@ window.__fails = 0;
   try {
     localStorage.removeItem("cs-escape-progress-v1");
     Engine.init();
+    var begin = document.getElementById("begin"); if (begin) begin.click();   // dismiss story intro
     var doors = document.querySelectorAll(".door").length;
     if(doors !== ROOMS.length){ window.__fails++; console.log("  FAIL corridor rendered "+doors+" doors"); }
     else console.log("  PASS corridor rendered "+doors+" doors");
@@ -101,6 +104,7 @@ const click = el => el.dispatchEvent(new window.Event("click", { bubbles: true }
     window.localStorage.removeItem(KEY);
     window.Engine.init();
     const order = JSON.parse(window.localStorage.getItem(KEY)).order;
+    const b0 = $("#begin"); if (b0) click(b0);      // dismiss story intro → corridor
 
     // route must be a permutation of all room indices
     const perm = [...order].sort((a, b) => a - b).join(",");
@@ -138,10 +142,10 @@ const click = el => el.dispatchEvent(new window.Event("click", { bubbles: true }
     // wrong key must be rejected
     window.localStorage.removeItem(KEY);
     window.Engine.init();
+    const bb = $("#begin"); if (bb) click(bb);
     const ord2 = JSON.parse(window.localStorage.getItem(KEY)).order;
-    click(window.document.querySelector('.door[data-index="' + ord2[0] + '"]')); // enter start
     // mark start solved so its successor becomes unlocked, then open the lock
-    window.localStorage.setItem(KEY, JSON.stringify({ solved: [ROOMS[ord2[0]].id], order: ord2 }));
+    window.localStorage.setItem(KEY, JSON.stringify({ solved: [ROOMS[ord2[0]].id], order: ord2, introSeen: true }));
     window.Engine.init();
     click(window.document.querySelector('.door[data-index="' + ord2[1] + '"]')); // second stop → lock
     if ($(".lockscreen")) {

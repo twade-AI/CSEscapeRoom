@@ -5,11 +5,24 @@ Pupils work through nine themed rooms. Each room contains a hands-on puzzle
 (drag-and-drop, click, type, decode…). Solving a room earns a **key 🔑** that
 unlocks the next door — and cracking the final room reveals how to *escape*.
 
-No installation, no accounts, no internet required. It's plain HTML/CSS/JS, so
-you can **double-click `index.html`** to run it, drop it on a school network
-share, or host it for free on **GitHub Pages**.
+No installation, no accounts, no internet required — it's plain HTML/CSS/JS. You
+can **double-click `index.html`**, drop it on a school network share, host it free
+on **GitHub Pages**, or **install it as an offline app** on classroom tablets.
 
 ![The corridor of doors](docs/screenshots/corridor.png)
+
+## ✨ What's inside
+
+- 🎲 **Randomised route** — a random start (★) and room order on every device.
+- ⏱ **Timer** — count-up or a countdown limit; the team's time shows on the win screen.
+- 📜 **Story intro & outro** that wrap the nine rooms into one adventure.
+- 🔊 **Sound effects + optional ambient music** — synthesised in the browser (no files), fully toggleable.
+- 🔀 **Per-game puzzle shuffling** — anagrams, codes, the cipher shift and more differ per device to beat copying (the *answers* stay the same).
+- 🏆 **Printable certificate** with the team name and time.
+- ⚙ **Teacher settings** — timer, difficulty, sound, team name, and which rooms to include.
+- 💡 **Hint economy** — a hint budget and time penalty set by difficulty.
+- ♿ **Accessibility** — keyboard play, screen-reader labels, reduce-motion, dyslexia-friendly font, high-contrast, colour-blind-safe doors and text sizing.
+- 📲 **Installable & works fully offline** (PWA).
 
 ---
 
@@ -52,14 +65,19 @@ and interactive whiteboards as well as laptops.
 
 ## 👩‍🏫 For the teacher
 
-* **Answer key:** see [`TEACHER_GUIDE.md`](TEACHER_GUIDE.md) for every solution,
-  key code and bonus answer.
-* **Teacher mode:** on the corridor screen, click *🔒 Teacher mode*. A
-  *👁 Reveal* button then appears in each room so you can demonstrate the answer.
-* **Reset:** *↺ Reset all progress* clears the current device.
-* **The final escape** decodes to a real-world team challenge you can set up in
-  the room (a Rubik's-Cube task). Change it in `js/data.js` → `GAME.escapeMessage`
-  and the Grey Room cipher if you'd like a different finish.
+* **⚙ Settings** (top-right): set the **timer** (off / count-up / countdown),
+  **difficulty** (the hint budget), **sound**, a **team name**, and **which rooms**
+  to include — plus all the accessibility options.
+  ![Settings panel](docs/screenshots/settings.png)
+* **Teacher mode** (corridor footer): adds **👁 Reveal** and **⏭ Skip** buttons in
+  every room, and a **🖨 Print answer key** one-page cheat-sheet.
+* **Answer key:** [`TEACHER_GUIDE.md`](TEACHER_GUIDE.md) lists every solution, key
+  and bonus answer. *With "Shuffle puzzle layouts" on, the exact letters/positions
+  vary per device but the answers are identical — use **Reveal** on a given device.*
+* **Certificate:** the win screen has a **🏆 Print certificate** button (team + time).
+* **New game:** *↺ New game* gives a fresh random route and re-shuffles the puzzles.
+* **The final escape** decodes to a real-world team task (a Rubik's-Cube challenge).
+  Edit `GAME.escapeMessage` and `GAME.story` in `js/data.js` for your own finish.
 
 ### Hosting it for your class (free)
 
@@ -73,6 +91,10 @@ VLE and tell pupils to open `index.html`.
 3. GitHub publishes the site at `https://<you>.github.io/csescaperoom/`
    (give it a minute on the first build).
 
+**Option C — install it (offline app).** Open the site over https (e.g. GitHub
+Pages) and use your browser's **Install** / "Add to Home Screen". It then runs
+fully offline — handy for tablets with patchy Wi-Fi.
+
 ---
 
 ## ✏️ Customising the puzzles
@@ -85,14 +107,19 @@ validation and styling all read from that one file.
 ## 🛠️ Project layout
 
 ```
-index.html          the page (loads the four scripts below)
-css/styles.css      all styling / the escape-room theme
-js/data.js          puzzle content & answers  ← edit me
-js/dragdrop.js      touch + mouse drag-and-drop helper
-js/puzzles.js       the nine interactive puzzle types
-js/engine.js        corridor, key/lock flow, progress saving
-TEACHER_GUIDE.md    full answer key
-_test/              developer smoke-tests (not needed to play)
+index.html             the page (loads the scripts below)
+css/styles.css         styling, themes, print & accessibility styles
+js/data.js             puzzle content, answers, story & defaults  ← edit me
+js/rng.js              seeded RNG for per-game puzzle shuffling
+js/sound.js            synthesised sound effects (Web Audio, no files)
+js/settings.js         teacher settings + the ⚙ modal
+js/dragdrop.js         touch + mouse + keyboard drag-and-drop
+js/puzzles.js          the nine interactive puzzle types
+js/engine.js           story, corridor, timer, hints, certificate, progress
+manifest.json, sw.js   offline PWA (web-app manifest + service worker)
+assets/                app icons
+TEACHER_GUIDE.md       full answer key
+_test/                 developer smoke-tests (not needed to play)
 ```
 
 ## ✅ For developers
