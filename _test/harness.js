@@ -30,6 +30,8 @@ window.HTMLElement.prototype.setPointerCapture = () => {};
 window.HTMLElement.prototype.releasePointerCapture = () => {};
 window.matchMedia = window.matchMedia || (() => ({ matches: false, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {} }));
 window.print = window.print || function () {};
+const TPW = Buffer.from("TXJXYWRlaXNHcmVhdA==", "base64").toString();  // teacher password (kept out of plaintext)
+window.prompt = () => TPW;                // teacher-mode password gate
 
 function inject(code) {
   const s = window.document.createElement("script");
@@ -37,9 +39,9 @@ function inject(code) {
   window.document.body.appendChild(s);
 }
 const read = f => fs.readFileSync(path.join(__dirname, "..", f), "utf8");
-["js/data.js", "js/rng.js", "js/sound.js", "js/settings.js", "js/dragdrop.js", "js/puzzles.js", "js/engine.js"].forEach(f => inject(read(f)));
+["js/data.js", "js/rng.js", "js/sound.js", "js/fx.js", "js/settings.js", "js/dragdrop.js", "js/puzzles.js", "js/engine.js"].forEach(f => inject(read(f)));
 // expose script-scoped consts to the Node side of the harness
-inject("window.Engine=Engine;window.ROOMS=ROOMS;window.Puzzles=Puzzles;window.GAME=GAME;window.DnD=DnD;window.Settings=Settings;window.Sound=Sound;window.Rand=Rand;");
+inject("window.Engine=Engine;window.ROOMS=ROOMS;window.Puzzles=Puzzles;window.GAME=GAME;window.DnD=DnD;window.Settings=Settings;window.Sound=Sound;window.Rand=Rand;window.FX=FX;");
 
 inject(`
 window.__fails = 0;
@@ -115,6 +117,13 @@ const click = el => el.dispatchEvent(new window.Event("click", { bubbles: true }
     if (open.length !== 1 || +open[0].dataset.index !== order[0])
       fail("start should be the single open door order[0]=" + order[0] + ", got " + open.map(d => d.dataset.index));
     else console.log("  PASS random start = room " + order[0] + " (" + ROOMS[order[0]].name + ")");
+
+    // teacher password gate: a wrong password must NOT unlock teacher mode
+    window.prompt = () => "not-the-password";
+    click($("#btn-teacher"));
+    if ($("#btn-answers")) fail("teacher mode unlocked with a wrong password");
+    else console.log("  PASS wrong teacher password rejected");
+    window.prompt = () => TPW;                      // correct password
 
     click($("#btn-teacher"));                       // enable teacher mode
     click(window.document.querySelector('.door[data-index="' + order[0] + '"]')); // enter start

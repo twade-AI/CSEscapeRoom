@@ -8,6 +8,18 @@ const Engine = (() => {
   const app = () => document.getElementById("app");
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
+  // Teacher mode is gated by a password. We store only a hash of it (cyrb53) so
+  // the password itself isn't sitting in the source. (Client-side, so it deters
+  // casual pupil access rather than being unbreakable.)
+  const TEACHER_HASH = 1693877825283578;
+  function cyrb53(str) {
+    let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+    for (let i = 0, ch; i < str.length; i++) { ch = str.charCodeAt(i); h1 = Math.imul(h1 ^ ch, 2654435761); h2 = Math.imul(h2 ^ ch, 1597334677); }
+    h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507); h1 ^= Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+    h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507); h2 ^= Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+    return 4294967296 * (2097151 & h2) + (h1 >>> 0);
+  }
+
   let solved = new Set();   // ids of solved rooms (only ones included in the game)
   let order = [];           // randomised route: a permutation of INCLUDED room indices
   let seed = 1;             // per-game seed for puzzle-content shuffling
@@ -88,9 +100,11 @@ const Engine = (() => {
     if (timerLoop) return;
     timerLoop = setInterval(() => {
       const t = timerInfo();
+      const low = Settings.get().timerMode === "countdown" && t.started && finishedAt == null && t.show > 0 && t.show <= 10000;
+      document.body.classList.toggle("timer-low", low);
       if (t.started && finishedAt == null) {
         renderHud();
-        if (Settings.get().timerMode === "countdown") { const r = Math.ceil(t.show / 1000); if (r > 0 && r <= 10) Sound.play("tick"); }
+        if (low) Sound.play("tick");
       }
     }, 1000);
   }
@@ -104,11 +118,14 @@ const Engine = (() => {
           <div class="intro-key">🗝️</div>
           <h1>${esc(GAME.title)}</h1>
           <p class="subtitle">${esc(GAME.subtitle)} • Escape Room</p>
-          <p class="intro-story">${esc(GAME.story.intro)}</p>
+          <p class="intro-story" id="story-type"></p>
           <p class="intro-meta">${total} rooms • randomised route${Settings.get().timerMode !== "off" ? " • timed" : ""}</p>
           <button class="btn big" id="begin">Enter the first room →</button>
         </div>
       </div>`;
+    const story = document.getElementById("story-type");
+    if (window.FX) { FX.setAccent("#36c46a"); FX.typeWriter(story, GAME.story.intro); }
+    else story.textContent = GAME.story.intro;
     document.getElementById("begin").addEventListener("click", () => {
       introSeen = true; save(); Sound.resume(); Sound.play("key"); renderCorridor();
     });
@@ -169,10 +186,17 @@ const Engine = (() => {
 
     app().querySelectorAll(".door").forEach(d => d.addEventListener("click", () => onDoorClick(+d.dataset.index)));
     document.getElementById("btn-reset").addEventListener("click", () => { if (confirm("Start a new game with a fresh route? This clears current progress on this device.")) reset(); });
-    document.getElementById("btn-teacher").addEventListener("click", () => { teacherMode = !teacherMode; renderCorridor(); });
+    document.getElementById("btn-teacher").addEventListener("click", () => {
+      if (teacherMode) { teacherMode = false; renderCorridor(); return; }
+      const pw = window.prompt("Enter the teacher password:");
+      if (pw == null) return;
+      if (cyrb53(pw) === TEACHER_HASH) { teacherMode = true; Sound.play("unlock"); toast("🔓 Teacher mode unlocked."); renderCorridor(); }
+      else { Sound.play("error"); toast("❌ Incorrect teacher password."); }
+    });
     document.getElementById("btn-story").addEventListener("click", showIntro);
     if (teacherMode) document.getElementById("btn-answers").addEventListener("click", printAnswerKey);
     renderHud();
+    if (window.FX) FX.setAccent("#6ad0ff");
     window.scrollTo({ top: 0 });
   }
 
@@ -224,6 +248,7 @@ const Engine = (() => {
   function unlockAnim(i) {
     const lock = app().querySelector(".lockscreen");
     if (lock) { lock.querySelector(".padlock").textContent = "🔓"; lock.classList.add("opened"); }
+    if (window.FX) FX.flash(ROOMS[i].colour);
     setTimeout(() => enterRoom(i), 600);
   }
 
@@ -232,6 +257,7 @@ const Engine = (() => {
     startTimerIfNeeded();
     renderHud();                 // show the clock immediately on first entry
     const room = ROOMS[i];
+    if (window.FX) { FX.setAccent(room.colour); FX.flash(room.colour); }
     const policy = Settings.hintPolicy();
     const hintsLeft = policy.count === Infinity ? Infinity : Math.max(0, policy.count - hintsUsed);
     const hintLabel = policy.count === Infinity ? "💡 Hint" : `💡 Hint (${hintsLeft} left)`;
@@ -317,6 +343,7 @@ const Engine = (() => {
     solved.add(room.id); save();
     if (solved.size === order.length) return showEscape();
     Sound.play("key"); celebrate();
+    if (window.FX) FX.burst(window.innerWidth / 2, window.innerHeight * 0.34, room.colour, 30);
 
     const nextIdx = successor(i), hasNext = nextIdx >= 0 && !isSolved(nextIdx);
     setTimeout(() => {
@@ -345,6 +372,7 @@ const Engine = (() => {
     if (finishedAt == null) { finishedAt = Date.now(); save(); }
     renderHud();
     Sound.play("escape");
+    if (window.FX) FX.fireworks();
     const time = fmt(timerInfo().elapsed);
     setTimeout(() => {
       app().innerHTML = `
@@ -447,6 +475,7 @@ const Engine = (() => {
     Settings.load(); Settings.apply(); Settings.setOnChange(onSettingsChange);
     load(); Rand.setSeed(seed); save();
     renderHud(); startTimerLoop();
+    if (window.FX) FX.init();
     if (!introSeen && solved.size === 0) showIntro(); else renderCorridor();
   }
 

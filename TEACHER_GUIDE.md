@@ -19,8 +19,11 @@ button inside any room during a live demo.
 > answer key** from the corridor.
 
 > **Settings & tools:** ⚙ (top-right) sets the timer, difficulty (hint budget),
-> sound, team name and which rooms are included. **Teacher mode** adds *Reveal*,
-> *Skip* and *Print answer key*. The win screen offers a printable **certificate**.
+> sound, team name and which rooms are included. **Teacher mode** is
+> **password-protected** (so pupils can't reveal answers) — once unlocked it adds
+> *Reveal*, *Skip* and *Print answer key*. The win screen offers a printable
+> **certificate**. *(The password is stored only as a hash in `js/engine.js`; change
+> `TEACHER_HASH` there to set your own.)*
 
 > Tip: keys are **not** case-sensitive and spaces are ignored, so `158399` and
 > `Network` both work fine at the locks.

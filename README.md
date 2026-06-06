@@ -13,6 +13,10 @@ on **GitHub Pages**, or **install it as an offline app** on classroom tablets.
 
 ## ✨ What's inside
 
+- 🎬 **Cinematic visuals** — a live particle-network background, neon glassmorphism
+  panels, a **terminal boot intro**, glowing 3D doors, light-flash room transitions
+  and a fireworks finish (all GPU-light and reduce-motion-aware).
+- 🔒 **Password-protected Teacher mode** so pupils can't reveal answers.
 - 🎲 **Randomised route** — a random start (★) and room order on every device.
 - ⏱ **Timer** — count-up or a countdown limit; the team's time shows on the win screen.
 - 📜 **Story intro & outro** that wrap the nine rooms into one adventure.
@@ -23,6 +27,10 @@ on **GitHub Pages**, or **install it as an offline app** on classroom tablets.
 - 💡 **Hint economy** — a hint budget and time penalty set by difficulty.
 - ♿ **Accessibility** — keyboard play, screen-reader labels, reduce-motion, dyslexia-friendly font, high-contrast, colour-blind-safe doors and text sizing.
 - 📲 **Installable & works fully offline** (PWA).
+
+| Terminal boot intro | The escape 🎉 |
+|---|---|
+| ![intro](docs/screenshots/intro.png) | ![escape](docs/screenshots/escape.png) |
 
 ---
 
@@ -69,8 +77,10 @@ and interactive whiteboards as well as laptops.
   **difficulty** (the hint budget), **sound**, a **team name**, and **which rooms**
   to include — plus all the accessibility options.
   ![Settings panel](docs/screenshots/settings.png)
-* **Teacher mode** (corridor footer): adds **👁 Reveal** and **⏭ Skip** buttons in
-  every room, and a **🖨 Print answer key** one-page cheat-sheet.
+* **Teacher mode** (corridor footer) is **password-protected** so pupils can't open
+  it. Once unlocked it adds **👁 Reveal** and **⏭ Skip** buttons in every room, plus
+  a **🖨 Print answer key** cheat-sheet. *(The password is stored only as a hash in
+  `js/engine.js` — change `TEACHER_HASH` to set your own.)*
 * **Answer key:** [`TEACHER_GUIDE.md`](TEACHER_GUIDE.md) lists every solution, key
   and bonus answer. *With "Shuffle puzzle layouts" on, the exact letters/positions
   vary per device but the answers are identical — use **Reveal** on a given device.*
@@ -112,6 +122,7 @@ css/styles.css         styling, themes, print & accessibility styles
 js/data.js             puzzle content, answers, story & defaults  ← edit me
 js/rng.js              seeded RNG for per-game puzzle shuffling
 js/sound.js            synthesised sound effects (Web Audio, no files)
+js/fx.js               visual effects — particle bg, flashes, fireworks, typewriter
 js/settings.js         teacher settings + the ⚙ modal
 js/dragdrop.js         touch + mouse + keyboard drag-and-drop
 js/puzzles.js          the nine interactive puzzle types
