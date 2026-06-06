@@ -385,3 +385,82 @@ body.a11y-cb .door-badge{background:#000;border-radius:6px;padding:0 3px}
 .answerkey table{width:100%;border-collapse:collapse;font-size:.82rem;margin-top:.6rem}
 .answerkey th,.answerkey td{border:1px solid #999;padding:5px 7px;text-align:left;vertical-align:top}
 .answerkey th{background:#eee}
+
+/* ===================================================================
+   "WOW" VISUAL LAYER — particle bg, neon glass, 3D doors, transitions
+   =================================================================== */
+#fx-bg{position:fixed;inset:0;z-index:0;pointer-events:none}
+#fx-glow{position:fixed;inset:0;z-index:1;pointer-events:none;
+  background:
+    radial-gradient(360px circle at var(--mx,50%) var(--my,40%), rgba(130,190,255,.10), transparent 70%),
+    radial-gradient(125% 95% at 50% 4%, transparent 52%, rgba(2,5,12,.6) 100%);}
+#fx-scan{position:fixed;inset:0;z-index:1400;pointer-events:none;opacity:.5;mix-blend-mode:overlay;
+  background:repeating-linear-gradient(rgba(255,255,255,.035) 0 1px, transparent 1px 3px)}
+#fx-flash{position:fixed;inset:0;z-index:1500;pointer-events:none;opacity:0;background:#fff}
+#fx-flash.go{animation:fxflash .55s ease-out}
+@keyframes fxflash{0%{opacity:0}12%{opacity:.42}100%{opacity:0}}
+#app{position:relative;z-index:2}
+body{background:radial-gradient(1200px 600px at 50% -10%, #25305a 0%, transparent 60%),linear-gradient(160deg,#0c1020 0%,#070a13 100%)}
+
+/* shimmering titles */
+.hero h1,.intro-card h1{background-size:220% auto;animation:shimmer 7s linear infinite}
+@keyframes shimmer{to{background-position:220% center}}
+
+/* glass panels */
+.room-view,.modal{background:linear-gradient(180deg,rgba(28,36,64,.82),rgba(16,22,40,.88));
+  backdrop-filter:blur(10px) saturate(1.15);-webkit-backdrop-filter:blur(10px) saturate(1.15);
+  border:1px solid rgba(255,255,255,.08);border-top:3px solid var(--accent,#6ad0ff);
+  box-shadow:0 24px 64px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.05);
+  animation:roomin .42s cubic-bezier(.2,.7,.2,1)}
+@keyframes roomin{from{opacity:0;transform:translateY(14px) scale(.985)}to{opacity:1;transform:none}}
+.keyring{background:rgba(20,26,48,.7);backdrop-filter:blur(6px)}
+.instructions{background:rgba(8,14,32,.72)}
+
+/* 3D corridor + glowing doors */
+.corridor{perspective:1100px}
+.door{transition:transform .22s cubic-bezier(.2,.7,.2,1.3),box-shadow .25s,border-color .2s;
+  background:linear-gradient(180deg,rgba(34,44,78,.82),rgba(22,28,52,.86));backdrop-filter:blur(6px)}
+.door.open{animation:doorglow 2.6s ease-in-out infinite}
+@keyframes doorglow{0%,100%{box-shadow:0 8px 26px rgba(0,0,0,.45),0 0 18px -8px var(--door)}
+  50%{box-shadow:0 14px 36px rgba(0,0,0,.5),0 0 44px 0 var(--door)}}
+.door.open:hover,.door.solved:hover{transform:translateY(-6px) rotateX(7deg) scale(1.03)}
+.door .door-icon{transition:transform .25s}
+.door.open:hover .door-icon{transform:scale(1.15) translateY(-2px)}
+
+/* button sheen */
+.btn{position:relative;overflow:hidden}
+.btn::after{content:"";position:absolute;top:-60%;left:-70%;width:45%;height:220%;transform:rotate(22deg);
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.4),transparent);opacity:0;pointer-events:none}
+.btn:hover::after{animation:sheen .7s ease-out}
+@keyframes sheen{0%{left:-70%;opacity:1}100%{left:140%;opacity:0}}
+
+/* tile / chip flourish */
+.tile,.term-chip,.frag-chip{animation:pop .28s backwards}
+.tile.placed{animation:snap .22s}
+@keyframes snap{0%{transform:scale(1.16)}100%{transform:scale(1)}}
+.key-reveal{box-shadow:0 0 36px -6px var(--warn)}
+
+/* terminal boot intro */
+.intro .intro-card{border-radius:14px}
+.intro-key{animation:floaty 4s ease-in-out infinite}
+@keyframes floaty{50%{transform:translateY(-8px)}}
+.intro-story{font-family:"Consolas","SF Mono",ui-monospace,monospace;color:#9dffb4;
+  background:#05130b;border-left:4px solid var(--good);box-shadow:inset 0 0 40px rgba(54,196,106,.08)}
+#story-type::after{content:"▋";color:var(--good);animation:blink 1.05s steps(1) infinite;margin-left:1px}
+@keyframes blink{50%{opacity:0}}
+body.rm #story-type::after{animation:none}
+
+/* low-timer drama */
+body.timer-low #fx-glow{background:radial-gradient(125% 95% at 50% 50%,transparent 42%,rgba(150,0,24,.5));
+  animation:lowpulse 1s ease-in-out infinite}
+@keyframes lowpulse{50%{opacity:.55}}
+
+/* lock screen / escape flourish */
+.padlock{animation:floaty 4s ease-in-out infinite}
+.escape .big-key{filter:drop-shadow(0 0 22px var(--warn))}
+.escape-msg{box-shadow:0 0 40px -10px var(--good)}
+
+/* keep it readable + calm when reduced motion is on */
+body.rm #fx-scan{display:none}
+body.rm .hero h1,body.rm .intro-card h1,body.rm .door.open,body.rm .intro-key,body.rm .padlock,
+body.rm .room-view,body.rm .tile,body.rm .term-chip,body.rm .frag-chip{animation:none}
