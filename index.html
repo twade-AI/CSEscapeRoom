@@ -5,21 +5,38 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Escape the Room — Computer Science</title>
   <meta name="description" content="An interactive Computer Science escape-room challenge for the classroom.">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <meta name="theme-color" content="#0e1220">
+  <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="css/styles.css">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗝️</text></svg>">
+  <link rel="apple-touch-icon" href="assets/icon-192.png">
 </head>
 <body>
   <noscript>
     <p style="text-align:center;padding:2rem">This escape room needs JavaScript turned on.</p>
   </noscript>
 
+  <div id="hud" class="hud" aria-label="Game controls"></div>
   <main id="app" aria-live="polite"><!-- the game renders here --></main>
+  <div id="modal-root"></div>
+  <div id="print-root" aria-hidden="true"></div>
 
   <!-- Plain scripts (no modules) so it works by double-clicking the file too. -->
   <script src="js/data.js"></script>
+  <script src="js/rng.js"></script>
+  <script src="js/sound.js"></script>
+  <script src="js/settings.js"></script>
   <script src="js/dragdrop.js"></script>
   <script src="js/puzzles.js"></script>
   <script src="js/engine.js"></script>
+
+  <!-- Offline support (only over http/https; harmless to skip on file://). -->
+  <script>
+    if ("serviceWorker" in navigator && location.protocol.indexOf("http") === 0) {
+      window.addEventListener("load", function () {
+        navigator.serviceWorker.register("sw.js").catch(function () {});
+      });
+    }
+  </script>
 </body>
 </html>

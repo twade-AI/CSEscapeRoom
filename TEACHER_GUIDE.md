@@ -9,6 +9,19 @@ button inside any room during a live demo.
 > room that key opens depends on that device's route. The game is won once **all
 > nine rooms** are solved (the Grey Room cipher reveals the final challenge).
 
+> **"Shuffle puzzle layouts" (⚙ Settings, on by default):** the *answers below are
+> always correct*, but the **presentation varies per device** to stop copying —
+> anagram letters are re-jumbled, the elimination distractors change, the spot-the-error
+> monitors are re-ordered, ASCII codes flip between denary/hex, and the cipher uses a
+> random shift (the decoded message is still the same). The **sudoku code stays
+> `158399`**. Turn it off for an identical experience on every device. Use a room's
+> **👁 Reveal** (Teacher mode) to see a specific device's live answer, or **🖨 Print
+> answer key** from the corridor.
+
+> **Settings & tools:** ⚙ (top-right) sets the timer, difficulty (hint budget),
+> sound, team name and which rooms are included. **Teacher mode** adds *Reveal*,
+> *Skip* and *Print answer key*. The win screen offers a printable **certificate**.
+
 > Tip: keys are **not** case-sensitive and spaces are ignored, so `158399` and
 > `Network` both work fine at the locks.
 

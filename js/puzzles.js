@@ -28,6 +28,42 @@ function h(tag, props = {}, ...kids) {
 }
 const norm = s => (s || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
 
+/* seeded shuffle, keyboard-activation helper, and a Caesar encoder used for
+   per-game puzzle randomisation + accessibility. */
+function shuffleWith(arr, rnd) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+function kbd(el, label) {                  // make a div/span operable by keyboard
+  el.tabIndex = 0;
+  if (!el.getAttribute("role")) el.setAttribute("role", "button");
+  if (label) el.setAttribute("aria-label", label);
+  el.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); el.click(); } });
+  return el;
+}
+function caesarEncode(s, k) {
+  return s.replace(/[a-z]/gi, ch => { const b = ch <= "Z" ? 65 : 97; return String.fromCharCode((ch.charCodeAt(0) - b + k) % 26 + b); });
+}
+// re-encode a word as ASCII codes in a randomly chosen base (denary or hex)
+function reencode(answer, rnd) {
+  const hex = rnd() < 0.5;
+  const raw = [...answer].map(ch => { const c = ch.charCodeAt(0); return hex ? c.toString(16).toUpperCase().padStart(2, "0") : String(c); }).join(" ");
+  return { raw, hex, answer };
+}
+const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+// build a letter group of `size` containing the answer letter once at a random
+// position, the rest random distractors (different from the answer letter).
+function buildGroup(ansCh, size, rnd) {
+  const pos = Math.floor(rnd() * size);
+  let out = "";
+  for (let i = 0; i < size; i++) {
+    if (i === pos) { out += ansCh; continue; }
+    let c; do { c = LETTERS[Math.floor(rnd() * 26)]; } while (c === ansCh); out += c;
+  }
+  return out;
+}
+
 const Puzzles = {
 
   /* =====================================================================
@@ -36,8 +72,11 @@ const Puzzles = {
      ===================================================================== */
   anagram: {
     mount(container, room, ctx) {
+      const rnd = ctx.rnd || Math.random, shuffle = !!ctx.shuffle;
+      const rescramble = ans => { let a; do { a = shuffleWith(ans.split(""), rnd).join(""); } while (a === ans && ans.length > 1); return a; };
       const cards = room.wheels.map(w => {
-        const letters = w.scrambled.split("");
+        const scrambledStr = shuffle ? (w.answer ? rescramble(w.answer) : shuffleWith(w.scrambled.split(""), rnd).join("")) : w.scrambled;
+        const letters = scrambledStr.split("");
         const card = h("div", { class: "wheel" });
         const slotsRow = h("div", { class: "slots" });
         const tray = h("div", { class: "tray" });
@@ -59,6 +98,7 @@ const Puzzles = {
           const slot = h("div", { class: "slot" });
           DnD.makeDropzone(slot, { onDrop: t => placeTile(t, slot) });
           slot.addEventListener("click", () => { if (slot._tile) returnTile(slot._tile); });
+          kbd(slot, "letter slot " + (s + 1));
           slotEls.push(slot); slotsRow.appendChild(slot);
         }
         letters.forEach(ch => {
@@ -70,6 +110,7 @@ const Puzzles = {
             const empty = slotEls.find(s => !s._tile);
             if (empty) placeTile(tile, empty);
           });
+          kbd(tile, "letter " + ch);
           tileEls.push(tile); tray.appendChild(tile);
         });
 
@@ -87,7 +128,7 @@ const Puzzles = {
         card.append(
           h("div", { class: "wheel-head" },
             h("span", { class: "wheel-num" }, w.label),
-            h("span", { class: "wheel-scram" }, w.scrambled)),
+            h("span", { class: "wheel-scram" }, scrambledStr)),
           slotsRow, tray, spareBtn);
 
         Object.assign(card, { _w: w, _state: state, _slotEls: slotEls, _tileEls: tileEls,
@@ -142,8 +183,10 @@ const Puzzles = {
      ===================================================================== */
   eliminate: {
     mount(container, room, ctx) {
+      const rnd = ctx.rnd || Math.random, shuffle = !!ctx.shuffle;
       const rowEls = room.rows.map((row, ri) => {
-        const groups = row.groups.map(g => {
+        const groupStrs = shuffle ? row.groups.map((g, gi) => buildGroup(row.answer[gi], g.length, rnd)) : row.groups;
+        const groups = groupStrs.map(g => {
           const gEl = h("span", { class: "elim-group" });
           g.split("").forEach(ch => {
             const b = h("button", { class: "elim-letter", type: "button" }, ch);
@@ -314,17 +357,23 @@ const Puzzles = {
      ===================================================================== */
   spoterror: {
     mount(container, room, ctx) {
-      const cards = room.monitors.map((m, i) => {
-        const card = h("div", { class: "monitor", type: "button" },
+      const rnd = ctx.rnd || Math.random, shuffle = !!ctx.shuffle;
+      const mons = shuffle ? shuffleWith(room.monitors, rnd) : room.monitors;
+      const cards = mons.map((m, i) => {
+        const card = h("div", { class: "monitor" },
           h("div", { class: "screen" }, h("pre", {}, m.code)),
           h("div", { class: "cross" }, "✗"),
           h("div", { class: "stand" }),
           h("div", { class: "why" }, ""));
         card._m = m; card._marked = false;
+        card.setAttribute("aria-pressed", "false");
         card.addEventListener("click", () => {
           card._marked = !card._marked;
           card.classList.toggle("marked", card._marked);
+          card.setAttribute("aria-pressed", String(card._marked));
+          if (window.Sound) Sound.play("click");
         });
+        kbd(card, "computer " + (i + 1) + " — mark as buggy");
         return card;
       });
       container.append(
@@ -360,6 +409,7 @@ const Puzzles = {
      ===================================================================== */
   match: {
     mount(container, room, ctx) {
+      const rnd = ctx.rnd || Math.random;
       const tray = h("div", { class: "term-tray" });
       let picked = null;                         // click-to-place support
 
@@ -371,9 +421,10 @@ const Puzzles = {
           if (picked === chip) { picked = null; chip.classList.remove("picked"); }
           else { if (picked) picked.classList.remove("picked"); picked = chip; chip.classList.add("picked"); }
         });
+        kbd(chip, "term " + term + " — pick up, then choose a definition");
         return chip;
       };
-      const shuffled = [...room.terms].sort(() => Math.random() - 0.5);
+      const shuffled = shuffleWith(room.terms, rnd);
       const chips = shuffled.map(makeChip);
       chips.forEach(c => tray.appendChild(c));
 
@@ -393,6 +444,7 @@ const Puzzles = {
           if (picked) { placeHere(picked); picked.classList.remove("picked"); picked = null; }
           else if (drop._chip) dropIntoTray(drop._chip);
         });
+        kbd(drop, "place the picked term on this definition");
         drop._placeHere = placeHere;
         const def = h("div", { class: "def-row" },
           h("div", { class: "def-text" }, d.text),
@@ -539,7 +591,9 @@ const Puzzles = {
      ===================================================================== */
   decode: {
     mount(container, room, ctx) {
-      const rows = room.codes.map((co, i) => {
+      const rnd = ctx.rnd || Math.random, shuffle = !!ctx.shuffle;
+      const codes = shuffle ? room.codes.map(co => reencode(co.answer, rnd)) : room.codes;
+      const rows = codes.map((co, i) => {
         const chips = co.raw.trim().split(/\s+/).map(tok => {
           const dec = co.hex ? parseInt(tok, 16) : parseInt(tok, 10);
           const ch = dec === 32 ? "␣" : String.fromCharCode(dec);
@@ -547,6 +601,7 @@ const Puzzles = {
             h("span", { class: "code-val" }, tok),
             h("span", { class: "code-ch" }, ""));
           chip.addEventListener("click", () => chip.querySelector(".code-ch").textContent = ch);
+          kbd(chip, "code " + tok + ", reveal letter");
           return chip;
         });
         const input = h("input", { class: "decode-in", placeholder: "decoded answer…", autocomplete: "off" });
@@ -599,12 +654,13 @@ const Puzzles = {
      ===================================================================== */
   jigsaw: {
     mount(container, room, ctx) {
+      const rnd = ctx.rnd || Math.random;
       const tray = h("div", { class: "frag-tray" });
       let picked = null;
       const dropToTray = chip => { chip.classList.remove("placed", "picked"); tray.appendChild(chip); };
       DnD.makeDropzone(tray, { onDrop: chip => dropToTray(chip) });
 
-      const rights = [...room.pairs.map(p => p.right), ...room.spares].sort(() => Math.random() - 0.5);
+      const rights = shuffleWith([...room.pairs.map(p => p.right), ...room.spares], rnd);
       const chips = rights.map(txt => {
         const chip = h("div", { class: "frag-chip" }, txt);
         chip._txt = txt;
@@ -613,6 +669,7 @@ const Puzzles = {
           if (picked === chip) { picked = null; chip.classList.remove("picked"); }
           else { if (picked) picked.classList.remove("picked"); picked = chip; chip.classList.add("picked"); }
         });
+        kbd(chip, "piece " + txt + " — pick up, then choose a word");
         tray.appendChild(chip);
         return chip;
       });
@@ -630,6 +687,7 @@ const Puzzles = {
           if (picked) { place(picked); picked.classList.remove("picked"); picked = null; }
           else if (drop._chip) dropToTray(drop._chip);
         });
+        kbd(drop, "complete the word " + p.left);
         drop._place = place; drop._pair = p;
         return h("div", { class: "frag-word" },
           h("span", { class: "frag-left" }, p.left),
@@ -677,7 +735,10 @@ const Puzzles = {
      ===================================================================== */
   cipher: {
     mount(container, room, ctx) {
-      const C = room.cipher, target = C.shift;
+      const rnd = ctx.rnd || Math.random, shuffle = !!ctx.shuffle;
+      const k = shuffle ? (1 + Math.floor(rnd() * 25)) : room.cipher.shift;
+      const C = shuffle ? { text: caesarEncode(GAME.escapeMessage, k), shift: k } : room.cipher;
+      const target = C.shift;
       let shift = 0;
 
       const decode = s => s.replace(/[a-z]/gi, ch => {

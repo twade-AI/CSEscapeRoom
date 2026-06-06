@@ -11,7 +11,50 @@ const GAME = {
   // This is the decoded message from the Grey Room shift cipher.
   escapeMessage:
     "To win and escape, you must place a Rubik's Cube on your desk with at " +
-    "least five of your team's colours facing up."
+    "least five of your team's colours facing up.",
+
+  // Narrative wrapper shown at the start and the end. Edit freely.
+  story: {
+    intro:
+      "It's late, the lab door has locked behind you, and the school's server " +
+      "has been hijacked by a rogue program. Nine rooms stand between your team " +
+      "and the exit. Crack the Computer Science puzzle in each room to earn the " +
+      "key to the next. Work fast — and good luck.",
+    outro:
+      "The server powers down, the locks click open, and daylight floods in. " +
+      "Your team cracked every room. You're free!"
+  },
+
+  // Printable certificate wording (team name + time are filled in automatically).
+  certificate: {
+    title: "Certificate of Escape",
+    line: "has successfully escaped the Computer Science Escape Room"
+  },
+
+  // Default teacher settings (can be changed in-app on the ⚙ Settings panel).
+  settingsDefaults: {
+    timerMode: "countup",   // "off" | "countup" | "countdown"
+    timerMinutes: 45,       // used when timerMode === "countdown"
+    difficulty: "normal",   // "easy" | "normal" | "hard"  (controls hint budget)
+    sound: true,
+    ambient: false,
+    shuffle: true,          // randomise puzzle layouts each game (anti-copying)
+    teamName: "",
+    rooms: null,            // null = all rooms; otherwise an array of room ids
+    reducedMotion: false,
+    dyslexia: false,
+    highContrast: false,
+    colourblind: false,
+    textScale: 1
+  },
+
+  // Hint budget per difficulty: count = hints allowed (Infinity = unlimited),
+  // penalty = seconds added to the timer for each hint used.
+  hintPolicy: {
+    easy:   { count: Infinity, penalty: 0 },
+    normal: { count: 6,        penalty: 30 },
+    hard:   { count: 3,        penalty: 60 }
+  }
 };
 
 /* Each room object:
