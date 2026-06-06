@@ -18,6 +18,18 @@ button inside any room during a live demo.
 > **👁 Reveal** (Teacher mode) to see a specific device's live answer, or **🖨 Print
 > answer key** from the corridor.
 
+> **Meta-puzzle (the vault):** each room secretly yields one **fragment letter**;
+> in room order they spell the master override **`ALGORITHM`** (room 1 = A … room 9 = M).
+> After all rooms are solved, pupils reach the **vault** and drag the fragments into
+> their numbered slots to compile it and escape. The **📓 Datapad** (top-right) tracks
+> recovered fragments. In Teacher mode the vault has a **⏭ Compile (teacher)** button.
+
+> **SENTINEL (the AI villain)** taunts pupils between rooms — it's just narrative.
+> If the timer is set to **Countdown** and it hits zero, SENTINEL "purges the server"
+> = a **lose screen** (use Count-up to avoid losing). The results screen shows time,
+> hints, accuracy, a **rank**, **achievement badges**, a downloadable **result card**
+> and a local **leaderboard**.
+
 > **Settings & tools:** ⚙ (top-right) sets the timer, difficulty (hint budget),
 > sound, team name and which rooms are included. **Teacher mode** is
 > **password-protected** (so pupils can't reveal answers) — once unlocked it adds
