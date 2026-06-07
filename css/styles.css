@@ -1,6 +1,10 @@
 /* ==========================================================================
    Escape the Room — Computer Science.  Single stylesheet.
    ========================================================================== */
+@font-face{font-family:'Orbitron';font-style:normal;font-weight:700;font-display:swap;
+  src:url(../assets/fonts/orbitron-700.woff2) format('woff2')}
+@font-face{font-family:'Orbitron';font-style:normal;font-weight:900;font-display:swap;
+  src:url(../assets/fonts/orbitron-900.woff2) format('woff2')}
 :root{
   --bg:#0e1220; --bg2:#161c30; --panel:#1c2440; --panel2:#222c4e;
   --ink:#eaf0ff; --muted:#9fb0d4; --line:#33406b;
@@ -8,6 +12,7 @@
   --radius:16px; --shadow:0 10px 30px rgba(0,0,0,.35);
   --font:"Segoe UI",system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif;
   --display:ui-monospace,"Cascadia Code","Cascadia Mono","SF Mono","Segoe UI Mono",Consolas,"Roboto Mono",Menlo,monospace;
+  --hero:'Orbitron',var(--display);
 }
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
@@ -430,7 +435,9 @@ body.a11y-cb .door-badge{background:#000;border-radius:6px;padding:0 3px}
 body{background:radial-gradient(1200px 600px at 50% -10%, #25305a 0%, transparent 60%),linear-gradient(160deg,#0c1020 0%,#070a13 100%)}
 
 /* shimmering titles */
-.hero h1,.intro-card h1{background-size:220% auto;animation:shimmer 7s linear infinite}
+.hero h1,.intro-card h1{font-family:var(--hero);font-weight:900;background-size:220% auto;animation:shimmer 7s linear infinite}
+.key-earned h2{font-family:var(--hero);font-weight:900;letter-spacing:.06em}
+.room-head h2{font-family:var(--hero);font-weight:700;letter-spacing:.02em}
 @keyframes shimmer{to{background-position:220% center}}
 
 /* glass panels */

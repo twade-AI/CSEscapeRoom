@@ -1,11 +1,12 @@
 /* Service worker — caches the app shell so the escape room works fully offline
    once it has been opened once. Bump CACHE to ship an update. */
-const CACHE = "cs-escape-v3";
+const CACHE = "cs-escape-v4";
 const ASSETS = [
   "./", "index.html", "css/styles.css",
   "js/data.js", "js/rng.js", "js/sound.js", "js/fx.js", "js/story.js",
   "js/settings.js", "js/dragdrop.js", "js/puzzles.js", "js/engine.js",
-  "manifest.json", "assets/icon-192.png", "assets/icon-512.png"
+  "manifest.json", "assets/icon-192.png", "assets/icon-512.png",
+  "assets/fonts/orbitron-700.woff2", "assets/fonts/orbitron-900.woff2"
 ];
 
 self.addEventListener("install", e => {
